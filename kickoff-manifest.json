@@ -1,7 +1,7 @@
 {
   ".gitignore": "f43dd81a2d0679b85d80c9cae71110aa427d7206a5cd2a382934e78b636ddf5d",
   "LICENSE": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
-  "README.md": "97943241b897bfff07e8de5f35d757c6064101b8cbeb186fb34d37139dc008f0",
+  "README.md": "c338ed49dca603cfcec4acab9acf2d744c0c3561918c5ab123385975048aaa2e",
   "docs/participant-guide.md": "287d8b90ef43dbfb699e26f7e6b93dbc3ee39818de205bb37ea388ee8ba6595b",
   "harness/Dockerfile": "34ea5a6e447f81434df9f81c3d291198da959880d068c67ea4dbe810629db2ad",
   "harness/__init__.py": "d18f143c5d686b1f9ae5f823c205961dbf89e48fad3e3345eb4583f866cbafe2",
