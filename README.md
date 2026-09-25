@@ -1,2 +1,3 @@
-# dark-factory-wearedevs
-The formal participants repository for the WeAreDevelopers hackathon
+# Dark Factory
+
+Start with [the participant guide](docs/participant-guide.md); its practice section runs the toy end to end.
