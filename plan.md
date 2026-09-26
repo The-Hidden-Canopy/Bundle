@@ -10,8 +10,9 @@ The governing order for this run is:
 
 1. Official Pocketful stage specifications and organizer corrections.
 2. Participant-guide eligibility, gates, and submission rules.
-3. The room's generic seven-seat factory design and task packet.
-4. This delivery plan.
+3. `docs/pocketful-riptide-master-engineering-submission-specification.md` (SHA-256 `e60e9cf30561b105844fc5d8d92d131e214caf9e05251faf141534881887d93b`) for the owner-selected five-seat factory and internal guidance, only where it does not conflict with items 1–2 or itself.
+4. The earlier Bundle PDF as background design guidance, only where it agrees with items 1–3.
+5. This delivery plan and the eventual run-specific task packet.
 
 Optional Riptide behavior never overrides a Pocketful invariant, a stage requirement, a clean-container constraint, or submission eligibility.
 
@@ -29,9 +30,10 @@ Optional Riptide behavior never overrides a Pocketful invariant, a stage require
 | Blocker | Why it matters | Owner to resolve | Evidence that closes it |
 | --- | --- | --- | --- |
 | No separate result checkout/path has been supplied | The kickoff package must not become the submitted implementation repository. | Human owner | Absolute path and intended public remote for the result repository. |
-| Seven-seat roster is not yet confirmed reachable in this room | The factory plan requires Vex, Morrow, Vale, Rook, Sable, Flint, and Wren; a qualifying run needs at least three active coding seats and reciprocal room handoffs. | Vex with human owners | Participant roster plus a two-way `@handle` reachability receipt for each configured coding seat. |
+| Judged-run roster is provisionally selected but not frozen | The owner selected Vex, Morrow, Flint, Wren, and Vale, recorded in `judged-run-freeze.md`. It cannot freeze until every runtime declaration is observed, mandate files are generic and correctly named, and the selected working paths are reconciled. | Human owner with Vex | Complete runtime metadata; active runtime proof; reciprocal room handoff receipt; and one generic, correctly named mandate per selected seat. |
+| Live five-seat source document has unresolved internal contradictions | It declares the five-seat Vex/Morrow/Flint/Wren/Vale configuration but retains seven-seat/Rook/Sable routing, inaccurate Feather runtime assertions, and references to factory/submission paths absent from this checkout. | Human owner with Vex | A corrected source revision or an explicit owner ruling on the authoritative five-seat sections; actual runtime declarations; and created/verified artifact paths. |
 | Harness/model declarations and generic mandate files are not yet frozen for the judged run | Gate 1 requires one correctly named mandate per seat with actual harness and exact model; product terms in a mandate are disqualifying. | Vex / seat owners | Mandate audit, hashes, and a roster-to-filename mapping. |
-| Clean-container and browser-check readiness has not been established | A green local process is not equivalent to the required Docker and Playwright evidence. | Rook | Docker daemon/readiness receipt and a reproducible harness environment record. |
+| Clean-container and browser-check readiness has not been established | A green local process is not equivalent to the required Docker and Playwright evidence. | Selected release-verifier seat | Docker daemon/readiness receipt and a reproducible harness environment record. |
 
 These are planning gates, not permission to fabricate evidence or begin a judged dark-factory run prematurely.
 
@@ -51,7 +53,7 @@ These are planning gates, not permission to fabricate evidence or begin a judged
 **Objective:** create the conditions for a valid autonomous run before any judged product code is dispatched.
 
 1. Select and initialize the separate result repository; record its absolute path and intended public remote.
-2. Configure and verify the four coding seats and the three independent verification/analysis seats. Do not substitute inactive or absent seats in the evidence trail.
+2. Confirm and configure the provisional Vex/Morrow/Flint/Wren/Vale seat map; use the PDF's four-role model (planner, builder, breaker, release verifier) plus the browser specialist without blurring independent release authority. Do not substitute inactive or absent seats in the evidence trail.
 3. Freeze generic mandates, record each mandate hash, actual harness, exact model identifier, and seat-name mapping.
 4. Create the result-repository skeleton: `README.md`, `FACTORY.md`, `mandates/`, empty future stage folders only as they become complete, and submission/evidence locations.
 5. Record Docker, Python/harness, Playwright, Git identity, and room-recording readiness without committing credentials.
@@ -65,13 +67,13 @@ These are planning gates, not permission to fabricate evidence or begin a judged
 
 | Workstream | Primary seat | Required outcome |
 | --- | --- | --- |
-| Requirement and acceptance matrix | Sable | Requirement-to-evidence matrix covering HTTP rules, authorization, error precedence, exact arithmetic, privacy, idempotency, import/export, and all atomicity invariants. |
-| Service and persistence | Morrow | Authoritative local state model, authentication, request validation, exact minor-unit arithmetic, transactional/idempotent writes, activity/request/split/settlement behavior, and export/import. |
-| Contract/integration design | Vex then Rook | Agreed API and persistence boundaries before parallel edits; one integrated candidate that builds and starts by the documented command. |
-| Adversarial validation | Flint | Independent tests for duplicate keys, body mismatch, insufficient funds, parallel spends, split remainder allocation, settlement all-or-nothing behavior, hidden/private feed visibility, reset atomicity, malformed JSON, and import/restart replay. |
-| Release verdict | Wren | `ACCEPT`, `REJECT`, or `INSUFFICIENT_EVIDENCE` based on requirements, code identity, command receipts, failures, and clean-container result. |
+| Requirement and acceptance matrix | Selected planner / architect seat | Requirement-to-evidence matrix covering HTTP rules, authorization, error precedence, exact arithmetic, privacy, idempotency, import/export, and all atomicity invariants. |
+| Service and persistence | Selected builder / integrator seat | Authoritative local state model, authentication, request validation, exact minor-unit arithmetic, transactional/idempotent writes, activity/request/split/settlement behavior, and export/import. |
+| Contract/integration design | Selected builder with planner handoff | Agreed API and persistence boundaries before parallel edits; one integrated candidate that builds and starts by the documented command. |
+| Adversarial validation | Selected breaker / test-engineer seat | Independent tests for duplicate keys, body mismatch, insufficient funds, parallel spends, split remainder allocation, settlement all-or-nothing behavior, hidden/private feed visibility, reset atomicity, malformed JSON, and import/restart replay. |
+| Release verdict | Selected release-verifier seat that did not author the candidate | `ACCEPT`, `REJECT`, or `INSUFFICIENT_EVIDENCE` based on requirements, code identity, command receipts, failures, and clean-container result. |
 
-**Stage 1 exit evidence:** independent clean build/start, shipped harness result, spec-derived negative tests beyond shipped checks, concurrency double-spend receipt, idempotency/retry receipt, total-conservation/reconciliation receipt, and Wren `ACCEPT`.
+**Stage 1 exit evidence:** independent clean build/start, shipped harness result, spec-derived negative tests beyond shipped checks, concurrency double-spend receipt, idempotency/retry receipt, total-conservation/reconciliation receipt, and `ACCEPT` from the selected non-author release verifier.
 
 **Snapshot action:** only after `ACCEPT`, materialize the accepted candidate into `stage-1/`, ensure no nested Git repository, hash it, and run the stage check against a fresh clone.
 
@@ -81,14 +83,14 @@ These are planning gates, not permission to fabricate evidence or begin a judged
 
 | Workstream | Primary seat | Required outcome |
 | --- | --- | --- |
-| API extension and held-funds model | Morrow | Available/held/total correctness; authorization lifecycle, expiry, partial/final capture, void, permissions, idempotency, and serializable concurrent operations. |
-| Browser interaction | Vale | Required routes, `data-testid` contracts, accessible loading/error/empty states, accurate display of seeded and live financial state, and lost-response recovery. |
-| Integrated candidate | Rook | Single self-contained Stage 2 service that retains all Stage 1 semantics and passes API plus browser checks. |
-| Riptide minimum vertical slice | Vale with Morrow interface contract | Offline deterministic resolver whose output cannot change the financial result; neutral/uncertain result for stale or missing context. |
+| API extension and held-funds model | Selected builder / integrator seat | Available/held/total correctness; authorization lifecycle, expiry, partial/final capture, void, permissions, idempotency, and serializable concurrent operations. |
+| Browser interaction | Selected browser-capable seat | Required routes, `data-testid` contracts, accessible loading/error/empty states, accurate display of seeded and live financial state, and lost-response recovery. |
+| Integrated candidate | Selected builder / integrator seat | Single self-contained Stage 2 service that retains all Stage 1 semantics and passes API plus browser checks. |
+| Optional Riptide slice | Selected product implementation seat, only after the required stage behavior is proven | Offline deterministic resolver whose output cannot change the financial result; neutral/uncertain result for stale or missing context. It must remain inside the stage boundary and cannot be a reason to add speculative APIs or later-stage behavior. |
 
 **Stage 2 adversarial focus:** stale UI after reset, duplicate/in-flight submission, lost-success response, available-versus-total confusion, unauthorized capture/void, expiry boundaries, partial capture remainder, explicit-offset timestamp handling, and a Riptide prompt whose displayed reason cannot be traced to local state.
 
-**Gate P2:** snapshot only after Flint's independent attack set and Wren's `ACCEPT`; run Stage 1 and Stage 2 suites against the snapshot and verify it does not claim Stage 3.
+**Gate P2:** snapshot only after the selected breaker's independent attack set and the selected non-author release verifier's `ACCEPT`; run Stage 1 and Stage 2 suites against the snapshot and verify it does not claim Stage 3.
 
 ### Phase 3 — Stage 3: truthful temporal history
 
@@ -102,7 +104,7 @@ These are planning gates, not permission to fabricate evidence or begin a judged
 
 **Stage 3 adversarial focus:** cross-user revision access, stale expected revision races, naive-offset variants, correction-induced historical overdraft, snapshot theft/reset leakage, backdated corrections, historical hold expiry, paginated statement drift, and seeded future timestamps.
 
-**Gate P3:** Wren accepts after a fresh candidate passes Stage 1–3 requirements and an independent export/import plus concurrent-correction receipt exists. Snapshot into `stage-3/` only then.
+**Gate P3:** the selected non-author release verifier accepts after a fresh candidate passes Stage 1–3 requirements and an independent export/import plus concurrent-correction receipt exists. Snapshot into `stage-3/` only then.
 
 ### Phase 4 — Stage 4: refunds and atomic correction batches
 
@@ -122,7 +124,7 @@ These are planning gates, not permission to fabricate evidence or begin a judged
 3. On a fresh clone, run `python -m harness check <result-repo> --track pocketful` and `python -m harness run --repo <clone> --all --mode isolated`.
 4. Manually execute every submitted stage's RUN.md in a clean environment and inspect the browser product.
 5. Assemble the evidence index, intervention log, video containing actual room work, README, FACTORY.md, and public remote receipt.
-6. Wren issues the final evidence-only verdict. Publish only the evidence-supported stages and claims.
+6. The selected non-author release verifier issues the final evidence-only verdict. Publish only the evidence-supported stages and claims.
 
 ## Non-negotiable acceptance and rejection rules
 
@@ -143,8 +145,8 @@ Every handoff records: stable task id; producer and next consumer seat; explicit
 1. Sable produces the Stage 1 observable requirement, ambiguity, risk, and evidence matrix from the complete official spec.
 2. Vex translates that matrix into bounded contracts and routes service, UI, and integration work without overlapping ownership.
 3. Morrow, Vale, and Rook execute only the scoped handoffs in the result repository.
-4. Flint attempts to falsify the integrated Stage 1 candidate; corrections return to the owning seat through an explicit room handoff.
-5. Wren independently decides whether the candidate may be snapshotted.
+4. The selected breaker attempts to falsify the integrated Stage 1 candidate; corrections return to the owning seat through an explicit room handoff.
+5. The selected non-author release verifier independently decides whether the candidate may be snapshotted.
 
 ## Planning decision log
 
@@ -154,6 +156,10 @@ Every handoff records: stable task id; producer and next consumer seat; explicit
 | Sequence stages rather than building a final service first | Earlier folders are tested for exact-stage boundaries and score gates are cumulative. | Confirmed. |
 | Keep Riptide non-authoritative and local | It must enhance presentation without contradicting financial truth or needing network access. | Confirmed. |
 | Use factory gates before dispatch | Roster, generic mandate, clean-container, and task-packet defects are disqualifiers, not polish items. | Confirmed. |
+| Use the PDF's four-role architecture as a recommended factory shape, not a mandatory seven-seat roster | The PDF and participant guide require generic independence and a minimum of three configured coding seats; neither makes the previous seven-seat/named-owner plan authoritative. | Confirmed. |
+| Record the owner-selected five-seat map before dispatch, but retain a freeze gate | Vex, Morrow, Flint, Wren, and Vale are now the provisional selected seats. Their recorded metadata has material gaps, so the selection is not evidence of a valid judged run. | Confirmed selection; freeze blocked. |
+| Treat the new live five-seat document as authoritative for the selected roster, but not as a self-validating freeze artifact | Its five-seat sections agree with the owner-provided freeze record; its surviving seven-seat references and nonexistent-path claims conflict with the current checkout and observed Wren runtime. | Reconciliation required before dispatch. |
+| Keep the Bundle checkout as authoritative source material, but not as an unproven submission result | It currently contains the kickoff specs, harness, participant guide, and planning PDF; it does not yet contain the required result-repository factory artifacts or accepted stage folders. | Confirmed. |
 | Select result-repository path, public remote, and actual seat/runtime details | These are currently absent from verified room/workspace evidence. | Pending human/seat-owner confirmation. |
 
 ## Plan maintenance
