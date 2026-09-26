@@ -154,18 +154,18 @@ Clone the kickoff repository, or extract the kickoff archive if you were given o
 Run commands below from its `dark-factory-wearedevs/` directory:
 
 ```sh
-python3.12 --version             # 3.12 or newer
+python3 --version                # use any Python 3.12+ interpreter
 docker --version                 # the daemon must be running
-python3.12 -m venv .venv
+python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install -r harness/requirements.txt
 python -m playwright install chromium
 python -m harness --help
 ```
 
-The venv needs Python 3.12 or newer, so name that interpreter when you create it: the
-`python3` that ships with macOS is 3.9, and `pip install` fails on it with `No matching
-distribution found for playwright==1.63.0`. Inside the venv, `python` is the right one.
+Use a Python 3.12+ interpreter to create the venv. If `python3` points to an older
+version, substitute the command for your newer interpreter (for example, `python3.12` or
+`python3.13`). Inside the venv, `python` is the right one.
 
 On Linux, browser system libraries may also be needed: `python -m playwright install
 --with-deps chromium`. Isolated checks install the browser inside Docker. On Windows, run
