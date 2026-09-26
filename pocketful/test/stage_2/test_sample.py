@@ -53,13 +53,6 @@ def _pay(page, handle="bob", amount="15.00", note="", visibility=None):
     page.click(sel("pay-submit"))
 
 
-def test_money_formatting_helper_matches_the_spec_examples():
-    assert money(10_000) == "100.00 EUR"
-    assert money(1200, 0, "JPY") == "1200 JPY"
-    assert money(1, 2) == "0.01 EUR"
-    assert money(1000, 3, "BHD") == "1.000 BHD"
-
-
 @pytest.mark.parametrize("route,anchor", [
     ("/", "pay-submit"), ("/requests", "incoming-list"), ("/split", "split-submit"),
     ("/signup", "signup-submit"), ("/login", "login-submit"),

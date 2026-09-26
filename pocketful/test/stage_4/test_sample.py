@@ -9,120 +9,65 @@ from types import SimpleNamespace
 import pytest
 
 import fixtures as fx
-from harness.http import assert_status, new_key
+from harness.http import assert_error, assert_status, new_key
 
 pytestmark = pytest.mark.stage(4)
-
-TTL = 3600
-
-
-def fixture(users=None, ttl=TTL, authorizations=None):
-    base = fx.fixture(users=users)
-    base["authorization_ttl_seconds"] = ttl
-    base["authorizations"] = authorizations or []
-    return base
 
 
 @pytest.fixture
 def world(reset, api):
-    seeded = fixture()
+    seeded = fx.fixture()
+    seeded["settlement_operator_ids"] = ["u_ada"]
     reset(seeded)
     return SimpleNamespace(
-        fixture=seeded, total=fx.seeded_total(seeded),
         ada=api().authenticate(fx.ADA["email"], fx.ADA["password"]),
-        bob=api().authenticate(fx.BOB["email"], fx.BOB["password"]),
-        cy=api().authenticate(fx.CY["email"], fx.CY["password"]))
+        bob=api().authenticate(fx.BOB["email"], fx.BOB["password"]))
 
 
-def wallet(client) -> dict:
-    return assert_status(client.get("/me"), 200).json()
+def pay(client, to_handle="bob", amount=1000):
+    return assert_status(client.post("/payments", json={"to_handle": to_handle, "amount": amount},
+                                     idempotency_key=new_key()), 201).json()
 
 
-def authorize(client, *, to_handle="bob", amount=2000, key=None, **extra):
-    body = {"to_handle": to_handle, "amount": amount}
-    body.update(extra)
-    return client.post("/authorizations", json=body,
-                       idempotency_key=new_key() if key is None else key)
+def refund(client, payment, amount=200, key=None):
+    return client.post("/payments/" + payment["payment_id"] + "/refunds",
+                       json={"amount": amount}, idempotency_key=key or new_key())
 
 
-def test_me_keeps_balance_and_gains_available_and_held(world):
-    me = wallet(world.ada)
-    assert me["balance"] == fx.ADA["balance"]
-    assert me["balance"] == me["total"], "balance equals total"
-    assert me["available"] == me["total"] and me["held"] == 0, \
-        "with no open holds all three agree, so the earlier suites behave identically"
+def batch(payment, amount=50):
+    return {"corrections": [dict(payment_id=payment["payment_id"], expected_revision=1,
+                                 amount=amount, effective_at=payment["created_at"],
+                                 reason="correction")]}
 
 
-def test_a_hold_moves_nothing_but_reserves(world):
-    before = wallet(world.bob)["total"]
-    assert_status(authorize(world.ada, amount=2000), 201)
-    me = wallet(world.ada)
-    assert me["total"] == fx.ADA["balance"], "a hold moves no money"
-    assert me["held"] == 2000
-    assert me["available"] == fx.ADA["balance"] - 2000
-    assert wallet(world.bob)["total"] == before, "the receiver gains nothing yet"
-
-
-def test_authorization_shape(world):
-    body = assert_status(authorize(world.ada, amount=2000, note="deposit",
-                                   visibility="private"), 201).json()
-    assert body["from_handle"] == "ada" and body["to_handle"] == "bob"
-    assert body["amount"] == 2000 and body["captured_amount"] == 0
-    assert body["status"] == "open" and body["payment_id"] is None
-    assert body["note"] == "deposit" and body["visibility"] == "private"
-    assert body["expires_at"] and body["created_at"] and body["authorization_id"]
-
-
-def test_full_capture_moves_the_money_once(world):
-    aid = authorize(world.ada, amount=2000).json()["authorization_id"]
-    payment = assert_status(world.bob.post(f"/authorizations/{aid}/capture", json={},
-                                           idempotency_key=new_key()), 201).json()
-    assert payment["amount"] == 2000
-    assert payment["authorization_id"] == aid and payment["request_id"] is None
-    ada, bob = wallet(world.ada), wallet(world.bob)
-    assert ada["total"] == fx.ADA["balance"] - 2000 and ada["held"] == 0
-    assert bob["total"] == fx.BOB["balance"] + 2000
-    assert ada["total"] + bob["total"] + wallet(world.cy)["total"] == world.total
-
-
-def test_void_releases_the_hold(world):
-    aid = authorize(world.ada, amount=2000).json()["authorization_id"]
-    body = assert_status(world.ada.post(f"/authorizations/{aid}/void"), 200).json()
-    assert body["status"] == "voided"
-    me = wallet(world.ada)
-    assert me["held"] == 0 and me["available"] == me["total"] == fx.ADA["balance"]
-
-
-def test_list_is_scoped_and_filtered(world):
-    aid = authorize(world.ada, amount=2000).json()["authorization_id"]
-    assert world.cy.get("/authorizations").json()["authorizations"] == []
-    outgoing = world.ada.get("/authorizations", params={"direction": "outgoing"}).json()
-    assert [a["authorization_id"] for a in outgoing["authorizations"]] == [aid]
-    incoming = world.bob.get("/authorizations", params={"direction": "incoming"}).json()
-    assert [a["authorization_id"] for a in incoming["authorizations"]] == [aid]
-    assert world.ada.get("/authorizations",
-                         params={"direction": "incoming"}).json()["authorizations"] == []
-
-
-def test_operator_can_correct_a_payment_in_a_batch(reset, api):
-    import fixtures as fx
-    from harness.http import new_key
-    fixture = fx.fixture()
-    fixture['settlement_operator_ids'] = ['u_ada']
-    reset(fixture)
-    ada = api().authenticate(fx.ADA['email'], fx.ADA['password'])
-    payment = ada.post('/payments', json=dict(to_handle='bob', amount=100), idempotency_key=new_key()).json()
-    response = ada.post('/correction-batches', json={'corrections': [dict(
-        payment_id=payment['payment_id'], expected_revision=1, amount=50,
-        effective_at=payment['created_at'], reason='correction')]}, idempotency_key=new_key())
-    assert response.status_code == 201
-    assert ada.get('/me').json()['balance'] == 9950
+def test_other_payments_carry_refund_of_null(world):
+    assert pay(world.ada)["refund_of"] is None
 
 
 def test_a_refund_is_a_linked_reverse_payment(world):
-    payment = assert_status(world.ada.post('/payments', json={'to_handle': 'bob', 'amount': 1000},
-                                           idempotency_key=new_key()), 201).json()
-    refund = assert_status(world.bob.post('/payments/' + payment['payment_id'] + '/refunds',
-                                          json={'amount': 200}, idempotency_key=new_key()), 201).json()
-    assert refund['refund_of'] == payment['payment_id']
-    assert wallet(world.ada)['total'] == fx.ADA['balance'] - 800
+    payment = pay(world.ada)
+    refunded = assert_status(refund(world.bob, payment), 201).json()
+    assert refunded["refund_of"] == payment["payment_id"]
+    assert (refunded["from_handle"], refunded["to_handle"], refunded["amount"]) == ("bob", "ada", 200)
+    assert assert_status(world.ada.get("/me"), 200).json()["total"] == fx.ADA["balance"] - 800
+
+
+def test_a_refund_replay_returns_the_original_body(world):
+    payment, key = pay(world.ada), new_key()
+    first = assert_status(refund(world.bob, payment, key=key), 201).json()
+    assert assert_status(refund(world.bob, payment, key=key), 200).json() == first
+
+
+def test_operator_can_correct_a_payment_in_a_batch(world):
+    payment = pay(world.ada, amount=100)
+    body = assert_status(world.ada.post("/correction-batches", json=batch(payment),
+                                        idempotency_key=new_key()), 201).json()
+    assert body["correction_batch_id"] and body["recorded_at"]
+    assert len(body["revisions"]) == 1
+    assert world.ada.get("/me").json()["balance"] == fx.ADA["balance"] - 50
+
+
+def test_a_batch_needs_a_settlement_operator(world):
+    payment = pay(world.bob, to_handle="ada", amount=100)
+    assert_error(world.bob.post("/correction-batches", json=batch(payment),
+                                idempotency_key=new_key()), 403, "forbidden")

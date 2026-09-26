@@ -15,9 +15,10 @@ import re
 
 # Identifier shapes only. Prose, numbers and quoted fragments are not evidence of
 # anything, and a term that needs a judgement call does not belong in a scan whose
-# output is a disqualification.
+# output is a disqualification. A path starts a token: in `import/export` the slash
+# joins two words.
 SHAPES = (
-    ("endpoint", re.compile(r"/[a-z][a-z0-9_]*(?:[/-][a-z0-9_{}]+)*")),
+    ("endpoint", re.compile(r"(?<![a-z0-9_])/[a-z][a-z0-9_]*(?:[/-][a-z0-9_{}]+)*")),
     ("identifier", re.compile(r"\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b")),
     ("test id", re.compile(r"\b[a-z][a-z0-9]*(?:-[a-z0-9]+)+\b")),
 )
@@ -38,11 +39,7 @@ TRACK_VOCABULARY = {
         '/auth/login',
         '/auth/signup',
         '/availability',
-        '/berlin',
-        '/export',
-        '/import',
         '/lookup',
-        '/new_york',
         '/reservation-moves',
         '/reservations',
         '/reservations/{reference}',
@@ -155,8 +152,6 @@ TRACK_VOCABULARY = {
         '/authorizations/{id}/capture',
         '/authorizations/{id}/void',
         '/correction-batches',
-        '/export',
-        '/import',
         '/payments',
         '/payments/{payment_id}/corrections',
         '/payments/{payment_id}/refunds',

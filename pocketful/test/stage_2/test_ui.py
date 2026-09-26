@@ -266,12 +266,14 @@ def test_split_submits_and_creates_requests(seeded, page, api):
     page.fill(sel("split-amount"), "10.00")
     page.fill(sel("split-handles"), "ada,bob,cy")
     page.wait_for_selector(sel("split-preview"))
-    with page.expect_response(lambda r: r.url.endswith("/splits") and r.request.method == "POST") as posted:
-        page.click(sel("split-submit"))
-    assert posted.value.status == 201
-    page.goto("/requests")
+    page.click(sel("split-submit"))
+    # Poll the API rather than the network: a server-rendered form never sends POST /splits.
     bob = api().authenticate(fx.BOB["email"], fx.BOB["password"])
-    theirs = bob.get("/requests").json()["requests"]
+    for _ in range(100):
+        theirs = bob.get("/requests").json()["requests"]
+        if theirs:
+            break
+        page.wait_for_timeout(100)
     assert len(theirs) == 1 and theirs[0]["amount"] == 333
 
 

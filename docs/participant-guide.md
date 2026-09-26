@@ -154,14 +154,18 @@ Clone the kickoff repository, or extract the kickoff archive if you were given o
 Run commands below from its `dark-factory-wearedevs/` directory:
 
 ```sh
-python --version                 # 3.12 or newer
+python3 --version                # use any Python 3.12+ interpreter
 docker --version                 # the daemon must be running
-python -m venv .venv
+python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install -r harness/requirements.txt
 python -m playwright install chromium
 python -m harness --help
 ```
+
+Use a Python 3.12+ interpreter to create the venv. If `python3` points to an older
+version, substitute the command for your newer interpreter (for example, `python3.12` or
+`python3.13`). Inside the venv, `python` is the right one.
 
 On Linux, browser system libraries may also be needed: `python -m playwright install
 --with-deps chromium`. Isolated checks install the browser inside Docker. On Windows, run
@@ -260,15 +264,14 @@ An OpenCode seat is not sandboxed at all — see
 
 **On macOS, let Band Desktop see `sbx`.** Homebrew installs it to `/opt/homebrew/bin`,
 which a GUI app does not inherit, so the runtime check reports `sbx` missing however
-happily your terminal runs it. Fix the PATH, then restart the background daemon — it does
-not restart with the window, and can be days old:
+happily your terminal runs it. Set the PATH, then reboot:
 
 ```sh
 sudo launchctl config user path "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-launchctl kickstart -k gui/$UID/com.thenvoi.jam
 ```
 
-Quit Band Desktop (⌘Q — closing the window is not enough) and reopen it.
+`launchctl config` takes effect only after a reboot (`man launchctl`). Quitting and
+reopening Band Desktop is not enough, and neither is restarting its background daemon.
 
 **Turn it on.** **Settings → Experiments → Docker Sandboxes**, then **Settings → Runtime
 → Re-check**. Only a seat Band Desktop runs itself can be sandboxed: create it with
@@ -487,6 +490,10 @@ reply. Seats resolve choices from the supplied requirements and communicate with
 band. If they cannot proceed, the coordinator records the blocker and available evidence
 as the stage outcome. Resolve event or specification questions before starting the stage.
 
+You may dispatch each stage separately or all four at once. Either way, send nothing
+between dispatches: a "looks good, continue" is steering, and dispatching the same stage
+twice is a rerun.
+
 ### Example prompt for your lead seat
 
 Once you have everything ready and you want to prepare for submission, you can give the lead the full stage sequence up front. 
@@ -588,7 +595,7 @@ suite's own files, unchanged. The rest of each suite is held back:
 | 1 | 83% | 79% |
 | 2 | 41% | 35% |
 | 3 | 11% | 9% |
-| 4 | 21% | 23% |
+| 4 | 21% | 16% |
 
 During judging, the full set of tests are run to validate your solution.
 Every one of them is written in the specification you were given, and a careful reading finds them. 
@@ -737,8 +744,9 @@ Paste `stage-1.md` into one Band Desktop room with the absolute path that prints
 > committed revision in the room.
 
 Use the same room and repository for all four stages so the band extends the service it
-already built. Paste one stage's spec at a time — that is how the real track runs too —
-and stop wherever you like: the point is to run the loop, not to finish the toy.
+already built. Paste one stage's spec at a time, or give the lead all four as in
+[Example prompt for your lead seat](#example-prompt-for-your-lead-seat), and stop wherever
+you like: the point is to run the loop, not to finish the toy.
 
 Check each stage as it lands:
 
@@ -786,8 +794,10 @@ that tells you the folder is right is the last one, `claimed stage: N`.
 That is why you copy the folder forward: `stage-4/` still has to serve the page and
 survive the burst, not only accept the new field.
 
-`--all` checks the whole repository the way the organizers do, and shows what the chain
-means: a passing `stage-4/` above a broken `stage-2/` reports stage 1 and nothing more.
+`--all` builds every folder the way the organizers do and prints one line per folder.
+It does not add the chain up for you: count from `stage-1/` and stop at the first folder
+that does not claim its stage. A passing `stage-4/` above a broken `stage-2/` still prints
+`claims stage 4` on its own line, but the entry reaches stage 1 and nothing more.
 
 Check it before the band has written anything and stage 1 fails, which is expected: the
 scaffold answers health and reset but has no counter, so **2 of the 8 stage-1 checks pass
@@ -816,8 +826,8 @@ python -m harness check ../band-work/toy-result --track toy
 It lists what a submission still needs — `README.md`, `FACTORY.md`, `mandates/` with
 their `Harness:` and `Model:` lines filled in, `room.json` — and it is the only check that proves gates 1 and 2 without Docker, so it takes a
 minute. Fix those on the toy now and both gates are rehearsed before the real repository
-matters. Gate 2 only really clears when three seats have exchanged `@handle` messages in
-the room, which is what the toy is for.
+matters. Gate 2 clears only once two of your seats have exchanged `@handle` messages in
+the room, with a reply in each direction, which is what the toy is for.
 
 One difference from the real tracks: the toy ships its **whole** suite, because its job
 is to show you the loop. Your track ships part of each stage's checks and the rest stay

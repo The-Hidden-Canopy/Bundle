@@ -98,7 +98,8 @@ def test_closed_day_shows_no_slots(reset, page):
 def test_clicking_an_unavailable_cell_does_nothing(seeded, page):
     log_in(page)
     search(page, party_size=6)
-    page.click(sel("slot-t_1-19:00"))
+    # force: a disabled cell also does nothing, and Playwright would wait for it to enable.
+    page.click(sel("slot-t_1-19:00"), force=True)
     assert page.query_selector(sel("booking-form")) is None, \
         "an unavailable cell must not open the booking form"
 
