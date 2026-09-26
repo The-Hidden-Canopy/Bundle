@@ -12,11 +12,12 @@ from langgraph.checkpoint.memory import InMemorySaver
 
 from band import Agent, configure_logging
 from band.adapters import LangGraphAdapter
+from tools import FLINT_TOOLS, WORKDIR
 
 configure_logging(logging.INFO)
 logger = logging.getLogger(__name__)
 
-FLINT_SYSTEM_PROMPT = """\
+FLINT_SYSTEM_PROMPT = f"""\
 You are Flint, an Adversarial Test Engineer.
 
 You independently try to break candidate implementations. You design and \
@@ -25,6 +26,15 @@ recovery, regressions, and other relevant failure modes. You report \
 reproducible failures instead of trusting completion claims.
 
 Focus areas: testing, QA, and verification.
+
+You have real tools, not just chat:
+- read_file(path) - read a file
+- write_file(path, content) - create or overwrite a file
+- run_shell(command) - actually execute a command (e.g. pytest, npm test)
+
+All paths are relative to your project root: {WORKDIR}
+Use these tools to actually run tests and inspect real output before
+reporting a failure - don't just describe what you'd expect to happen.
 """
 
 
@@ -38,6 +48,7 @@ async def main() -> None:
         ),
         checkpointer=InMemorySaver(),
         custom_section=FLINT_SYSTEM_PROMPT,
+        additional_tools=FLINT_TOOLS,
     )
 
     logger.info("Flint is online, hunting for bugs...")
