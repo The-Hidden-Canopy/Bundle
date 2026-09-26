@@ -44,6 +44,7 @@ async def main() -> None:
 
     adapter = ClaudeSDKAdapter(
         custom_section=VALE_SYSTEM_PROMPT,
+        effort="high",
         emit=Emit.TOOL_CALLS | Emit.THOUGHTS,
     )
 
