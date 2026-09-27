@@ -53,8 +53,8 @@
 - Exit `pay-uncertain` only when BOTH `GET /me` balance AND `GET /activity` payment identity confirm the outcome (§7: recovery check must use payment identity/activity evidence, not only a balance delta)
 - **After `409 insufficient_funds`:** client is NOT in `pay-uncertain` — no payment occurred; this is a definitive failure (§7). Retaining the same key for a later retry is a sound UX policy (the key is unclaimed), but the server also accepts a new key — same-key reuse is a client choice, not a server requirement.
 - Only `201`/`200` permanently lock a key to its body (§7)
-- **Post-reset (§3.3):** `POST /_test/reset` replaces all service state including completed server idempotency records. A locally-persisted pre-reset key becomes a fresh write. Recovery must use the resulting payment identity/activity evidence, not only a balance delta.
-- **Post-import (§10):** Import preserves completed idempotency bodies/responses and tokens. A matching post-import retry returns `200` (replay); the original response is the authoritative reconciliation receipt.
+- **Post-reset (§3.3):** `POST /_test/reset` replaces all service state; old key is unclaimed. A locally-persisted pre-reset key becomes a first use — typically `201`, but can still fail if the new fixture makes the request invalid or unaffordable. Recovery must use the resulting payment identity/activity evidence, not only a balance delta.
+- **Post-import (§10):** Import preserves completed idempotency request bodies/responses and valid retries. A matching completed retry after unchanged export/import returns `200` with the preserved original response; that response is the authoritative reconciliation receipt.
 
 ---
 
