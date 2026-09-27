@@ -2,9 +2,9 @@
 
 ## Status and planning basis
 
-**Status:** initial execution map; no implementation or submission repository has been created by this plan.
+**Status:** evidence-gated execution map. The remote Stage 1 reference candidate was independently checked out at `ddc0ffbeb94cbd27acc6d4fdfeae92724b2b2780` and rejected on reproducible Stage 1 contract failures. A local, uncommitted repair worktree now passes its four contract regressions and the 147-test published host suite, but has no candidate SHA, clean-container receipt, eligibility clearance, or acceptance. It is neither container-verified nor accepted as a judged submission.
 
-This plan is derived from the current authoritative room plan and the supplied Dark Factory kickoff package. The current checkout (`E:\HiddenCanopy\Bundle`) is the **kickoff package**, not the repository that may be submitted. Its Git worktree is clean at `main...origin/main`.
+This plan is derived from the current authoritative room plan and the supplied Dark Factory kickoff package. Per the owner’s explicit routing decision, the current checkout (`E:\HiddenCanopy\Bundle`, remote `The-Hidden-Canopy/Bundle`) is the delivery target; `band-ai/dark-factory-wearedevs` is its upstream parent and reference source. Existing local plan/freeze edits are intentional working evidence, not an accepted stage snapshot.
 
 The governing order for this run is:
 
@@ -29,7 +29,7 @@ Optional Riptide behavior never overrides a Pocketful invariant, a stage require
 
 | Blocker | Why it matters | Owner to resolve | Evidence that closes it |
 | --- | --- | --- | --- |
-| No separate result checkout/path has been supplied | The kickoff package must not become the submitted implementation repository. | Human owner | Absolute path and intended public remote for the result repository. |
+| Bundle Stage 1 staging copy is uncommitted and lacks clean-container evidence | Vex independently detached `E:\HiddenCanopy\pocketful-stage1-verify-ddc0ffb` at `ddc0ffbeb94cbd27acc6d4fdfeae92724b2b2780` with a clean tree, then reproduced settlement validation bypasses, negative-balance import, and a net-neutral `2^53` settlement precision loss. The bounded repair is now staged at Bundle `stage-1/`; five targeted contract regressions pass, including the `minor_units ∈ {0,2,3}` fixture rule, an HTTP probe rejects invalid settlement visibility without moving money, and the published host harness reports 147/147. The staging copy is uncommitted, so it has no candidate SHA or fresh-clone identity. Docker is unavailable locally, and `harness check E:\HiddenCanopy\Bundle --track pocketful` fails for missing `FACTORY.md`, `mandates/`, and `room.json`. The service timeout behavior remains an explicit source-review item rather than a passed gate. | Vex with owner release authority | User-authorized Bundle candidate commit; fresh Bundle checkout; independent regression receipts for settlement note/visibility, invalid import, net-neutral ceiling behavior, and fixture values; clean container/isolated harness receipt; eligibility check. |
 | Judged-run roster is provisionally selected but not frozen | The owner selected Vex, Morrow, Flint, Wren, and Vale, recorded in `judged-run-freeze.md`. It cannot freeze until every runtime declaration is observed, mandate files are generic and correctly named, and the selected working paths are reconciled. | Human owner with Vex | Complete runtime metadata; active runtime proof; reciprocal room handoff receipt; and one generic, correctly named mandate per selected seat. |
 | Live five-seat source document has unresolved internal contradictions | It declares the five-seat Vex/Morrow/Flint/Wren/Vale configuration but retains seven-seat/Rook/Sable routing, inaccurate Feather runtime assertions, and references to factory/submission paths absent from this checkout. | Human owner with Vex | A corrected source revision or an explicit owner ruling on the authoritative five-seat sections; actual runtime declarations; and created/verified artifact paths. |
 | Harness/model declarations and generic mandate files are not yet frozen for the judged run | Gate 1 requires one correctly named mandate per seat with actual harness and exact model; product terms in a mandate are disqualifying. | Vex / seat owners | Mandate audit, hashes, and a roster-to-filename mapping. |
@@ -52,7 +52,7 @@ These are planning gates, not permission to fabricate evidence or begin a judged
 
 **Objective:** create the conditions for a valid autonomous run before any judged product code is dispatched.
 
-1. Select and initialize the separate result repository; record its absolute path and intended public remote.
+1. Initialize the owner-selected result repository: `E:\HiddenCanopy\Bundle`, remote `https://github.com/The-Hidden-Canopy/Bundle`; retain `https://github.com/band-ai/dark-factory-wearedevs` as upstream reference only.
 2. Confirm and configure the provisional Vex/Morrow/Flint/Wren/Vale seat map; use the PDF's four-role model (planner, builder, breaker, release verifier) plus the browser specialist without blurring independent release authority. Do not substitute inactive or absent seats in the evidence trail.
 3. Freeze generic mandates, record each mandate hash, actual harness, exact model identifier, and seat-name mapping.
 4. Create the result-repository skeleton: `README.md`, `FACTORY.md`, `mandates/`, empty future stage folders only as they become complete, and submission/evidence locations.
@@ -152,15 +152,16 @@ Every handoff records: stable task id; producer and next consumer seat; explicit
 
 | Decision | Rationale | Status |
 | --- | --- | --- |
-| Treat the current repository as immutable kickoff input | The official guide says the submitted result is a separate repository. | Confirmed. |
+| Treat Bundle as the owner-selected result repository | Bundle is distinct from the upstream Dark Factory parent and the owner explicitly selected it as the delivery target. The parent remains reference-only. | Confirmed by owner routing decision. |
 | Sequence stages rather than building a final service first | Earlier folders are tested for exact-stage boundaries and score gates are cumulative. | Confirmed. |
 | Keep Riptide non-authoritative and local | It must enhance presentation without contradicting financial truth or needing network access. | Confirmed. |
+| Treat the Riptide character pack as a Stage 2 asset input, not Stage 1 evidence or a standing mandate | `docs/Riptide_Pocketful_Character_Pack.pdf` (SHA-256 `f98b171008f0f61ff34b0ee0b73703764b1046cd7eb38ca9f343b360169db4a9`) supplies visual references, state mappings, and reason-code prompts. Its assets and copy must be locally derived, attributed in an asset manifest, and bound only to traceable financial reason codes after Stage 2 is active. | Confirmed source boundary. |
 | Use factory gates before dispatch | Roster, generic mandate, clean-container, and task-packet defects are disqualifiers, not polish items. | Confirmed. |
 | Use the PDF's four-role architecture as a recommended factory shape, not a mandatory seven-seat roster | The PDF and participant guide require generic independence and a minimum of three configured coding seats; neither makes the previous seven-seat/named-owner plan authoritative. | Confirmed. |
 | Record the owner-selected five-seat map before dispatch, but retain a freeze gate | Vex, Morrow, Flint, Wren, and Vale are now the provisional selected seats. Their recorded metadata has material gaps, so the selection is not evidence of a valid judged run. | Confirmed selection; freeze blocked. |
 | Treat the new live five-seat document as authoritative for the selected roster, but not as a self-validating freeze artifact | Its five-seat sections agree with the owner-provided freeze record; its surviving seven-seat references and nonexistent-path claims conflict with the current checkout and observed Wren runtime. | Reconciliation required before dispatch. |
-| Keep the Bundle checkout as authoritative source material, but not as an unproven submission result | It currently contains the kickoff specs, harness, participant guide, and planning PDF; it does not yet contain the required result-repository factory artifacts or accepted stage folders. | Confirmed. |
-| Select result-repository path, public remote, and actual seat/runtime details | These are currently absent from verified room/workspace evidence. | Pending human/seat-owner confirmation. |
+| Keep Bundle’s existing specs and harness as reference inputs while building its result surface in place | The Bundle checkout is now the delivery target, but it still needs factory artifacts, an accepted Stage 1 folder, and evidence generated from that target. | In progress. |
+| Use Bundle as the result-repository path and public remote | Owner selected `E:\HiddenCanopy\Bundle` / `https://github.com/The-Hidden-Canopy/Bundle`; actual seat/runtime details still require evidence. | Path confirmed; runtime evidence pending. |
 
 ## Plan maintenance
 

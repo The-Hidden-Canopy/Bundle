@@ -20,8 +20,11 @@ This README only tells you where things are.
 | `scaffold/` | Minimal Python starting service, used only by the toy walkthrough |
 | `harness/` | The `python -m harness` CLI that builds your stage folders and runs the checks |
 
-Pick one track and stay in it. The result you submit is a **separate** repository your
-band builds; nothing you submit goes into this one.
+Pick one track and stay in it. The owner-selected delivery target is this repository,
+`https://github.com/The-Hidden-Canopy/Bundle`; it is distinct from its
+`https://github.com/band-ai/dark-factory-wearedevs` upstream parent. Stage output,
+factory artifacts, and evidence for this run belong here. The upstream remains
+reference material and does not receive delivery changes.
 
 ## Help
 
