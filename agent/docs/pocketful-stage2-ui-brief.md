@@ -199,7 +199,11 @@ Pure advisory function. Never mutates financial state. Called before confirming 
 
 ## §12. Concurrent Write Behavior
 
-Writes linearize normally per spec. No special "service unavailable" UI state for concurrent writes. Server returns ordinary results (`201`, `409`, etc.). Cross-tab behavior: second tab receives `409 insufficient_funds` on stale-balance submit — handled normally as `pay-error`.
+**UI contract assumes spec-compliant Stage 1.** The spec (§7.3) guarantees that concurrent writes produce the same results as executing them in some serial order, and that 201 means the payment was committed. Under that guarantee, the UI state machine handles all observable results normally — no special "service unavailable" UI state for concurrent writes.
+
+**Cross-tab behavior:** A second tab submitting on stale balance receives `409 insufficient_funds` → handled normally as `pay-error`.
+
+**Stage 1 defect B2 (open):** `POST /_test/reset` during an in-flight `POST /payments` returns 201 for a payment that was then silently discarded (pointer-swap race in `store.replaceState`). The UI correctly enters `pay-success` — but the payment does not exist and no reconciliation path exists, because `pay-uncertain` is only triggered by a lost response (no status code), not by a definitive 201. This violates the linearization invariant and is a Stage 1 server-side data-loss bug. **Stage 2 must not ship until B2 is resolved in Stage 1** — the UI cannot be designed around this failure mode.
 
 ---
 

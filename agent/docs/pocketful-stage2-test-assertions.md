@@ -53,10 +53,13 @@ expect(keys.length).toBeGreaterThan(0);
 | pay `201` | `item-{id}` pending | `#pay-success` | "sent" | `#pay-error` |
 | pay `403`/`404` non-party | `item-{id}` shown | `#pay-error` | "not authorized" | `#pay-uncertain` |
 | pay `409` insufficient | `item-{id}` pending | `#pay-error` | "insufficient funds" | `#pay-uncertain` |
+| pay `422` invalid amount *(B1-gated)* | `item-{id}` pending | `#pay-error` | "invalid" or "out of range" | `#pay-uncertain` |
 | decline `200` | `item-{id}` pending | `item-{id}` | `data-status="declined"` | — |
 | cancel `200` | `item-{id}` outgoing | `item-{id}` | `data-status="cancelled"` | — |
 
 **Critical:** `403`/`404` must NOT enter `#pay-uncertain` — this is a permanent authorization denial, not a network error.
+
+**B1 caveat (request-pay 422):** Until Stage 1 defect B1 is fixed (`payRequest` at `handlers.js:383` skips `validateAmountField`), `POST /requests/{id}/pay` with a seeded invalid-amount request returns **201**, not 422. The 422 row above only holds post-B1 fix. Do not run the 422 row against the current server — it will fail. In a correct Stage 1 (post-fix), requests with out-of-range amounts cannot be created via the API, so this case is only reachable via seeded fixtures in test scenarios.
 
 ---
 

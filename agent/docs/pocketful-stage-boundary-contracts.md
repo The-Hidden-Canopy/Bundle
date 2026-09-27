@@ -167,13 +167,19 @@
 
 ---
 
-## 10. Known Stage 1 Deviations (non-blocking, queued for next revision)
+## 10. Stage 1 Defects (open as of Wren verdict, board task #8)
 
-1. `minor_units` accepts any non-negative integer; spec allows only `{0, 2, 3}`
-2. No server-enforced per-request read timeout
-3. Dead code: unused `authorization_not_open` error helper
+**Blocking — all three states (Wren: REJECT):**
 
-None of these affect the Stage 2 UI contract.
+1. **B1 — `payRequest` skips amount validation** (`handlers.js:383`): `POST /requests/{id}/pay` reads `request.amount` raw without calling `validateAmountField`. A seeded request with amount −50 pays successfully and inverts the transfer direction (payer credited, requester debited, wallet goes negative). A seeded amount of 5,000,000,000 creates an over-cap payment. Breaches spec §1.2 (no negative balance) and spec §4 (amount ≤ 1,000,000,000). This also means the matrix row claiming 422 from request-pay for out-of-range amounts is only correct after B1 is fixed — until then, request-pay returns 201.
+
+2. **B2 — Reset/payment race (Bundle `d92cd86` only)**: `POST /payments` arriving during an in-flight `POST /_test/reset` returns 201 but the debit is silently discarded because `store.replaceState` is a pointer swap. The Stage 2 UI correctly interprets 201 as `pay-success`, but the payment does not exist. This is a Stage 1 server-side data-loss bug; the `pay-uncertain` reconciliation path never fires because the client received a definitive status. The Stage 2 UI contract cannot defend against it — fix requires atomicity on the reset path.
+
+**Non-blocking:**
+
+3. Dead code: unused `authorization_not_open` error helper (no UI impact)
+
+Previously listed items 1 (`minor_units` range) and 2 (read timeout) were fixed in `d92cd86` and are no longer open.
 
 ---
 
