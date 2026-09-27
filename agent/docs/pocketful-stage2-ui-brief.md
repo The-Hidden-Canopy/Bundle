@@ -150,7 +150,7 @@ Decimal input accepted; converted to minor units.
 
 **Status field values:** `open`, `captured`, `voided`, `expired`
 
-**Capture:** Default `final: true` (releases remaining hold after capture). Explicit `{"final": false}` for partial capture. UI design decision: expose as a checkbox "Release remaining hold after capture" defaulting checked. Spec does not prescribe the form control.
+**Capture:** Returns `201` with the created payment (same shape as `POST /payments`). Default `final: true` (releases remaining hold after capture). Explicit `{"final": false}` for partial capture. UI design decision: expose as a checkbox "Release remaining hold after capture" defaulting checked. Spec does not prescribe the form control.
 
 **Void idempotency:** Void on already-voided → `200`, no error shown. Both calls transition to `voided` state.
 
