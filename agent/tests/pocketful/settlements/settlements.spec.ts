@@ -3,6 +3,7 @@
 // S2: non-operator attempts settlement → 403
 // S3: operator settlement with insufficient funds → 409 insufficient_funds
 // S4: multi-entry batch fails mid-batch → all-or-nothing rollback, no partial debit
+// S5: invalid transfer visibility → 422; same idempotency key remains usable for corrected retry
 import { test, expect } from '../test.base';
 
 const API_BASE = 'http://localhost:8080';
@@ -194,5 +195,65 @@ test.describe('Settlements', () => {
     expect(BigInt(bobMe.balance)).toBe(10n);
     expect(BigInt(carolMe.balance)).toBe(0n);
     expect(BigInt(daveMe.balance)).toBe(0n);
+  });
+
+  test('S5 — invalid transfer visibility → 422; same key still usable on corrected retry', async ({ page }) => {
+    // spec stage-1.md:581: entries use ordinary payment visibility rules
+    // spec stage-1.md:589: failed validation must claim no idempotency key and create no payment
+    // A service that returns 201 on invalid visibility AND claims the key would fail the second assertion.
+    await resetWithOperator(page, ['alice']);
+
+    const aliceToken = (await page.request.post(`${API_BASE}/auth/login`, {
+      data: { email: 'a@test.local', password: 'Password1234!' },
+    }).then(r => r.json())).token;
+    const bobToken = (await page.request.post(`${API_BASE}/auth/login`, {
+      data: { email: 'b@test.local', password: 'Password1234!' },
+    }).then(r => r.json())).token;
+
+    const idemKey = 's5-invalid-visibility';
+
+    // Step 1: Submit settlement with invalid visibility → must be rejected
+    const badSettlement = await page.request.post(`${API_BASE}/settlements`, {
+      headers: {
+        Authorization: `Bearer ${aliceToken}`,
+        'Idempotency-Key': idemKey,
+        'Content-Type': 'application/json',
+      },
+      data: {
+        transfers: [
+          { from_handle: 'bob', to_handle: 'carol', amount: 10, visibility: 'invalid_vis' },
+        ],
+      },
+    });
+    // Invalid visibility must be rejected (422 validation_failed or similar 4xx)
+    expect(badSettlement.status()).toBeGreaterThanOrEqual(400);
+    expect(badSettlement.status()).toBeLessThan(500);
+
+    // Step 2: Bob's balance must be unchanged — rejected settlement created no payment
+    const bobMe = await page.request.get(`${API_BASE}/me`, {
+      headers: { Authorization: `Bearer ${bobToken}` },
+    }).then(r => r.json());
+    expect(BigInt(bobMe.balance)).toBe(50n);
+
+    // Step 3: Same key with corrected visibility must succeed → 201 (key unclaimed by 4xx)
+    const goodSettlement = await page.request.post(`${API_BASE}/settlements`, {
+      headers: {
+        Authorization: `Bearer ${aliceToken}`,
+        'Idempotency-Key': idemKey,
+        'Content-Type': 'application/json',
+      },
+      data: {
+        transfers: [
+          { from_handle: 'bob', to_handle: 'carol', amount: 10, visibility: 'public' },
+        ],
+      },
+    });
+    expect(goodSettlement.status()).toBe(201);
+
+    // Bob's balance decremented — settlement applied
+    const bobFinal = await page.request.get(`${API_BASE}/me`, {
+      headers: { Authorization: `Bearer ${bobToken}` },
+    }).then(r => r.json());
+    expect(BigInt(bobFinal.balance)).toBe(40n);
   });
 });
