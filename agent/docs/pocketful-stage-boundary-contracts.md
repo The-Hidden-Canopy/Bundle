@@ -93,16 +93,20 @@
 |----------|--------|------|-------------|-------------|---------|-------------|
 | `POST /authorizations` | POST | Bearer | Required | `{to_handle, amount, note?, visibility?}` | 201 `{authorization_id, from_handle, to_handle, amount, status: "open", captured_amount: 0, payment_id: null}` | `422`, `401` |
 | `GET /authorizations` | GET | Bearer | — | query: `direction`, `status`, `limit`, `offset` | 200 `{authorizations: [...], has_more}` | `401` |
-| `POST /authorizations/{id}/capture` | POST | **Receiver** | Required | `{amount?, final?}` | **201** `{payment_id, from_handle, to_handle, amount, authorization_id}` | `409 authorization_not_open`, `409 authorization_expired`, `422 capture_exceeds_authorization`, `422 validation_failed`, `403` (not receiver), `404` |
-| `POST /authorizations/{id}/void` | POST | Creator | **None** | `{}` | 200 `{authorization_id, status: "voided"}` | `409 authorization_not_open`, `403`, `401` |
+| `POST /authorizations/{id}/capture` | POST | **Receiver** | Required | `{amount?, final?}` — `final` defaults to `true` | **201** `{payment_id, from_handle, to_handle, amount, authorization_id}` | `409 authorization_not_open`, `409 authorization_expired`, `422 capture_exceeds_authorization`, `422 validation_failed`, `403` (not receiver), `404` |
+| `POST /authorizations/{id}/void` | POST | Creator | **None** | `{}` | 200 `{authorization_id, status: "voided"}` | `409 authorization_not_open` (covers captured, expired, and any non-open state), `403`, `401` |
 
 **Critical contract points:**
 - Only the **receiver** (the `to_handle`) may capture — not the creator
 - Capture returns **201** (not 200) with created payment in payment shape
+- **`final` defaults to `true`**: any capture without explicit `{"final": false}` closes the authorization entirely — `held` goes to 0, status → `captured`, remaining hold released. To keep auth open for further partial captures, must explicitly pass `{"amount": X, "final": false}`.
+- Concurrent capture behavior: two captures without `final: false` → only the first can succeed (201); the second receives `409 authorization_not_open`. Both can be 201 only if both explicitly set `final: false` and the combined amount ≤ original hold.
 - Void has **no idempotency key**; void on already-voided → 200 (idempotent no-op, not an error)
+- Void on expired or captured authorization → `409 authorization_not_open` (void has no separate `authorization_expired` code)
 - Capture after void → `409 authorization_not_open`
 - Capture after expiry → `409 authorization_expired` (distinct from `authorization_not_open`)
 - Capture amount > remaining hold → `422 capture_exceeds_authorization`
+- No `GET /authorizations/{id}` endpoint — use list endpoint or response bodies from create/capture/void for state probes
 - `authorization-error` DOM hook covers all capture and void failures; no `capture_failed` or `void_failed` error codes exist
 - Pre-flight `GET /me` or `GET /authorizations` cannot prevent a subsequent capture 409 — authorization may expire in the gap; always re-fetch after any capture failure
 
