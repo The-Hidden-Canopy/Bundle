@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -45,6 +46,13 @@ async def main() -> None:
     adapter = ClaudeSDKAdapter(
         custom_section=VALE_SYSTEM_PROMPT,
         effort="high",
+        # Full bypass: Vale runs headless with nobody to click an approval
+        # prompt, so anything short of bypassPermissions leaves Bash (git
+        # add/commit/push, etc.) permanently stuck waiting for a click that
+        # never comes. Chosen explicitly - this lets Vale commit and push
+        # to the shared repo with zero human review per action.
+        permission_mode="bypassPermissions",
+        cwd=str(Path(__file__).resolve().parent.parent),
         emit=Emit.TOOL_CALLS | Emit.THOUGHTS,
     )
 
