@@ -72,12 +72,13 @@ Idempotency key generated client-side (UUID), persisted in `localStorage` keyed 
 | Other error | `pay-error` | Other 4xx/5xx |
 
 **`pay-uncertain` handling (strict):**
+- `pay-uncertain` is triggered only by a **lost response** (network error / no status code received) — not by a definitive error response such as `409 insufficient_funds`
 - Client stays in `pay-uncertain`; retains the same idempotency key
 - Form retryable with same key and same body
-- UI exits `pay-uncertain` only when **both** `GET /me` (balance) AND `GET /activity` (payment record) agree on the outcome
+- UI exits `pay-uncertain` only when **both** `GET /me` (balance) AND `GET /activity` (payment identity/record) agree on the outcome (spec §7: recovery must use payment identity evidence, not only a balance delta)
 - Balance-only update insufficient to exit — must wait for activity confirmation
 
-**Recovery after `409 insufficient_funds`:** Same idempotency key remains valid. Retry succeeds after funding. Only `201`/`200` permanently locks a key to its body.
+**After `409 insufficient_funds`:** Client is NOT in `pay-uncertain` — no payment occurred (spec §7). Shows `pay-error`. Retaining the same key for a later retry is a sound UX policy (key is unclaimed and valid for reuse), but the server also accepts a new key — same-key reuse is a client choice, not a server requirement. Only `201`/`200` permanently lock a key to its body.
 
 **Competing clients:** Another client may spend balance after this browser's last read. `409 insufficient_funds` shows `pay-error`, refreshes balance and feed, preserves form inputs.
 

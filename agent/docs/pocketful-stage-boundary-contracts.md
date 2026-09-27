@@ -49,11 +49,12 @@
 
 **UI obligations:**
 - Generate UUID idempotency key client-side; persist in `localStorage`
-- On network failure (no status code) → enter `pay-uncertain` state; retain key
-- Exit `pay-uncertain` only when BOTH `GET /me` balance AND `GET /activity` record agree
-- `409 insufficient_funds` does NOT consume key; key remains valid after funding (spec §7: "Key reused after the original request failed with 4xx | Treated as a first use")
-- Only `201`/`200` permanently lock a key to its body
-- **Post-reset key behavior (UI adversarial rule):** `POST /_test/reset` clears server idempotency records. A locally-persisted key after reset is a fresh write — the client must never assume it still identifies the same server-side operation. After the retry response, refresh and reconcile both `GET /me` and `GET /activity` before exiting `pay-uncertain`. Do not label the retry speculatively as replay or new — treat it as unknown until reconciliation confirms the outcome.
+- On network failure (no status code received) → enter `pay-uncertain` state; retain key
+- Exit `pay-uncertain` only when BOTH `GET /me` balance AND `GET /activity` payment identity confirm the outcome (§7: recovery check must use payment identity/activity evidence, not only a balance delta)
+- **After `409 insufficient_funds`:** client is NOT in `pay-uncertain` — no payment occurred; this is a definitive failure (§7). Retaining the same key for a later retry is a sound UX policy (the key is unclaimed), but the server also accepts a new key — same-key reuse is a client choice, not a server requirement.
+- Only `201`/`200` permanently lock a key to its body (§7)
+- **Post-reset (§3.3):** `POST /_test/reset` replaces all service state including completed server idempotency records. A locally-persisted pre-reset key becomes a fresh write. Recovery must use the resulting payment identity/activity evidence, not only a balance delta.
+- **Post-import (§10):** Import preserves completed idempotency bodies/responses and tokens. A matching post-import retry returns `200` (replay); the original response is the authoritative reconciliation receipt.
 
 ---
 
