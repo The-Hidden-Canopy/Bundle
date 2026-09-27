@@ -51,7 +51,7 @@
 - Generate UUID idempotency key client-side; persist in `localStorage`
 - On network failure (no status code) → enter `pay-uncertain` state; retain key
 - Exit `pay-uncertain` only when BOTH `GET /me` balance AND `GET /activity` record agree
-- `409 insufficient_funds` does NOT consume key; key remains valid after funding
+- `409 insufficient_funds` does NOT consume key; key remains valid after funding (spec §7: "Key reused after the original request failed with 4xx | Treated as a first use")
 - Only `201`/`200` permanently lock a key to its body
 
 ---
