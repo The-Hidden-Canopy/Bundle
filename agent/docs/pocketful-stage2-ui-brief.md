@@ -39,15 +39,19 @@
 **Source:** `GET /me` → `{ user_id, display_name, handle, balance, total, available, held, currency, minor_units }`
 (`balance` = `total`; `available` = `total − held`)
 
-**DOM hooks:**
-- `wallet-balance` — carries `data-amount="{minor_units_integer}"` attribute
-- `wallet-available` — carries `data-amount="{minor_units_integer}"` attribute
-- `wallet-held` — carries `data-amount="{minor_units_integer}"` attribute; absent when zero
+**DOM hooks (spec stage-2.md:358-360):**
+- `wallet-balance` — formatted `total`; retains existing display and `data-amount` (`balance` = `total` always)
+- `wallet-available` — formatted `available`, with `data-amount`; **present as the headline number** — what the user can actually spend (spec explicit)
+- `wallet-held` — formatted `held`, with `data-amount`; absent when zero
 - `wallet-refresh` — button that refreshes both balance AND activity feed without clearing the pay form
 
 **Ordering guard:** `wallet-refresh` responses processed in request-sequence order. A delayed earlier response must never overwrite a later refresh result.
 
 **Integer safety:** All amounts as BigInt or string. Never `Number()` or float arithmetic on monetary values.
+
+**`available` is derived, never seeded** (stage-2.md:209): test fixtures seed `balance` only; the service derives `available = total − held`. Do not pass `available` to `/_test/reset`.
+
+**Invariant to encode in tests** (stage-2.md:166-168): sum of all wallet `total` values equals total seeded; `available = total − held` must never be negative.
 
 ---
 
