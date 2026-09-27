@@ -76,7 +76,7 @@
 | Endpoint | Method | Auth | Idempotency | Request body | Success | Error codes |
 |----------|--------|------|-------------|-------------|---------|-------------|
 | `POST /requests` | POST | Bearer | Required | `{payer_handle, amount, note?}` | 201 `{request_id, status: "pending", ...}` | `422`, `401` |
-| `GET /requests` | GET | Bearer | — | — | 200 `{requests: [{id, status, amount, ...}]}` | `401` |
+| `GET /requests` | GET | Bearer | — | — | 200 `{requests: [{request_id, status, amount, ...}]}` | `401` |
 | `POST /requests/{id}/pay` | POST | Bearer | Required | `{}` | 201 | `403/404` (non-party), `409`, `401` |
 | `POST /requests/{id}/decline` | POST | Bearer | Required | `{}` | 200 | `403/404`, `401` |
 | `POST /requests/{id}/cancel` | POST | Bearer | Required | `{}` | 200 | `403/404`, `401` |
@@ -180,6 +180,8 @@
 3. Dead code: unused `authorization_not_open` error helper (no UI impact)
 
 Previously listed items 1 (`minor_units` range) and 2 (read timeout) were fixed in `d92cd86` and are no longer open.
+
+**Stage 2 clearance gate: B1 + B2 only.** No other open finding blocks Stage 2. B2's fix is serialization of `POST /_test/reset` against in-flight writes (or a merge-rather-than-swap in `replaceState`) — **not** a timeout change. A timeout fix leaves B2 completely intact. N2 (reset scale budget) is a spec gap, not a code defect, and does not gate Stage 2. Re-run condition per Wren board task #8: B1 fixed + B2 fixed + green baseline confirmed.
 
 ---
 
