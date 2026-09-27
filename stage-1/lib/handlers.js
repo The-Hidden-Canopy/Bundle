@@ -78,14 +78,18 @@ function withIdempotency(ctx, method, path, run) {
 
 // ---- auth ---------------------------------------------------------------
 
-function signup(ctx) {
-  const state = store.getState();
+async function signup(ctx) {
   const body = ctx.body;
   const email = requireString(body, 'email', { allowEmpty: false });
   const password = requireString(body, 'password', { allowEmpty: false });
   const displayName = requireString(body, 'display_name');
   if (!/^[^@\s]+@[^@\s]+$/.test(email)) throw errors.validation('invalid email format');
   if (password.length < 8) throw errors.validation('password too short');
+  // Hash before touching state: the await below is the only yield point in this
+  // handler, so every uniqueness check and mutation after it runs as one
+  // uninterrupted synchronous block, same as the rest of this codebase relies on.
+  const passwordHash = await store.hashPassword(password);
+  const state = store.getState();
   const emailLower = email.toLowerCase();
   if (state.usersByEmail.has(emailLower)) throw errors.emailTaken();
   const handle = store.deriveHandleFromEmail(email);
@@ -95,7 +99,7 @@ function signup(ctx) {
     id,
     email,
     emailLower,
-    passwordHash: store.hashPassword(password),
+    passwordHash,
     displayName,
     handle,
     balance: 0,
@@ -109,13 +113,14 @@ function signup(ctx) {
   return { status: 201, body: { user_id: id, display_name: displayName, token } };
 }
 
-function login(ctx) {
-  const state = store.getState();
+async function login(ctx) {
   const body = ctx.body;
   const email = requireString(body, 'email', { allowEmpty: false });
   const password = requireString(body, 'password', { allowEmpty: false });
-  const user = state.users.get(state.usersByEmail.get(email.toLowerCase()));
-  if (!user || !store.verifyPassword(password, user.passwordHash)) throw errors.unauthenticated();
+  const lookupState = store.getState();
+  const user = lookupState.users.get(lookupState.usersByEmail.get(email.toLowerCase()));
+  if (!user || !(await store.verifyPassword(password, user.passwordHash))) throw errors.unauthenticated();
+  const state = store.getState();
   const token = store.newToken();
   state.tokens.set(token, user.id);
   return { status: 200, body: { user_id: user.id, display_name: user.displayName, token } };
@@ -151,7 +156,7 @@ function me(ctx) {
 
 // ---- test control ---------------------------------------------------------
 
-function validateFixtureAndBuild(fixture) {
+async function validateFixtureAndBuild(fixture) {
   if (typeof fixture !== 'object' || fixture === null || Array.isArray(fixture)) {
     throw errors.validation('fixture must be an object');
   }
@@ -178,7 +183,7 @@ function validateFixtureAndBuild(fixture) {
       id: u.id,
       email: u.email,
       emailLower: u.email.toLowerCase(),
-      passwordHash: store.hashPassword(u.password),
+      passwordHash: await store.hashPassword(u.password),
       displayName: u.display_name,
       handle: u.handle,
       balance: u.balance,
@@ -238,8 +243,8 @@ function validateFixtureAndBuild(fixture) {
   return state;
 }
 
-function testReset(ctx) {
-  const next = validateFixtureAndBuild(ctx.body);
+async function testReset(ctx) {
+  const next = await validateFixtureAndBuild(ctx.body);
   store.replaceState(next);
   return { status: 204, body: null };
 }

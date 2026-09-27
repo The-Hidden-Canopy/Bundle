@@ -111,7 +111,8 @@ async function handleRequest(req, res) {
     const groups = match.pattern.exec(pathname);
     const params = {};
     match.params.forEach((name, index) => { params[name] = groups[index + 1]; });
-    const result = match.handler({ method, path: pathname, params, query: parseQuery(url), headers, body, user });
+    const result = await match.handler({ method, path: pathname, params, query: parseQuery(url), headers, body, user });
+    if (deadline.expired() || res.writableEnded || res.destroyed) return;
     send(res, result.status, result.body);
   } catch (e) {
     if (deadline.expired() || res.writableEnded || res.destroyed) return;

@@ -1,6 +1,9 @@
 'use strict';
 
 const crypto = require('crypto');
+const { promisify } = require('util');
+
+const scrypt = promisify(crypto.scrypt);
 
 function createEmptyState() {
   return {
@@ -32,18 +35,21 @@ function nextId(prefix) {
 
 function newToken() { return crypto.randomBytes(24).toString('hex'); }
 
-function hashPassword(password) {
+// Async scrypt (libuv threadpool) rather than scryptSync: the sync form blocks
+// the single event loop for its full cost, which under load starves unrelated
+// in-flight requests' body reads past their own request deadline.
+async function hashPassword(password) {
   const salt = crypto.randomBytes(16);
-  const hash = crypto.scryptSync(password, salt, 64);
+  const hash = await scrypt(password, salt, 64);
   return `${salt.toString('hex')}:${hash.toString('hex')}`;
 }
 
-function verifyPassword(password, stored) {
+async function verifyPassword(password, stored) {
   if (typeof stored !== 'string' || !stored.includes(':')) return false;
   const [saltHex, hashHex] = stored.split(':');
   const salt = Buffer.from(saltHex, 'hex');
   const expected = Buffer.from(hashHex, 'hex');
-  const actual = crypto.scryptSync(password, salt, expected.length);
+  const actual = await scrypt(password, salt, expected.length);
   if (actual.length !== expected.length) return false;
   return crypto.timingSafeEqual(actual, expected);
 }
