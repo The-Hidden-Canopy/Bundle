@@ -53,6 +53,7 @@
 - Exit `pay-uncertain` only when BOTH `GET /me` balance AND `GET /activity` record agree
 - `409 insufficient_funds` does NOT consume key; key remains valid after funding (spec §7: "Key reused after the original request failed with 4xx | Treated as a first use")
 - Only `201`/`200` permanently lock a key to its body
+- **Post-reset key behavior (UI adversarial rule):** `POST /_test/reset` clears server idempotency records. A locally-persisted key after reset is a fresh write — the client must never assume it still identifies the same server-side operation. After the retry response, refresh and reconcile both `GET /me` and `GET /activity` before exiting `pay-uncertain`. Do not label the retry speculatively as replay or new — treat it as unknown until reconciliation confirms the outcome.
 
 ---
 
