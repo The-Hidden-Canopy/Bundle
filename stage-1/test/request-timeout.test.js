@@ -86,6 +86,10 @@ test('an incomplete reset receives the documented ten-second budget', async (t) 
   beforeNormalDeadline.request.destroy();
   assert.equal(beforeNormalDeadline.kind, 'still-open', 'reset must not inherit the ordinary 5 s request budget');
 
+  const importBeforeNormalDeadline = await incompletePost(port, '/_test/import', 5_600);
+  importBeforeNormalDeadline.request.destroy();
+  assert.equal(importBeforeNormalDeadline.kind, 'still-open', 'import must receive the test-control 10 s request budget');
+
   const deadlineResult = await incompletePost(port, '/_test/reset', 10_600);
   deadlineResult.request.destroy();
   assert.notEqual(deadlineResult.kind, 'still-open', 'server left a partial reset open beyond its 10 s budget');
