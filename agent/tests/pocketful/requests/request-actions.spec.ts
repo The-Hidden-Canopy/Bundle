@@ -35,10 +35,10 @@ test.describe('Request actions', () => {
         'Idempotency-Key': 'b1-alice-requests-bob',
         'Content-Type': 'application/json',
       },
-      data: { from_handle: 'bob', amount: 20, note: 'Test B1' },
+      data: { payer_handle: 'bob', amount: 20, note: 'Test B1' },
     });
     expect(createReq.status()).toBe(201);
-    const requestId = (await createReq.json()).id;
+    const requestId = (await createReq.json()).request_id;
 
     // Bob pays the request
     const payReq = await page.request.post(`http://localhost:8080/requests/${requestId}/pay`, {
@@ -65,7 +65,7 @@ test.describe('Request actions', () => {
     const bobRequests = await page.request.get('http://localhost:8080/requests', {
       headers: { 'Authorization': `Bearer ${bobToken}` },
     }).then(r => r.json());
-    const req = bobRequests.requests.find((r: any) => r.id === requestId);
+    const req = bobRequests.requests.find((r: any) => r.request_id === requestId);
     expect(req).toBeDefined();
     expect(req.status).toBe('paid');
   });
@@ -88,9 +88,9 @@ test.describe('Request actions', () => {
         'Idempotency-Key': 'b2-alice-requests-bob',
         'Content-Type': 'application/json',
       },
-      data: { from_handle: 'bob', amount: 10, note: 'Test B2' },
+      data: { payer_handle: 'bob', amount: 10, note: 'Test B2' },
     });
-    const requestId = (await createReq.json()).id;
+    const requestId = (await createReq.json()).request_id;
 
     // Carol tries to pay it — must get 403 or 404 (spec allows either)
     const carolPay = await page.request.post(`http://localhost:8080/requests/${requestId}/pay`, {
@@ -127,9 +127,9 @@ test.describe('Request actions', () => {
         'Idempotency-Key': 'b3-alice-requests-bob',
         'Content-Type': 'application/json',
       },
-      data: { from_handle: 'bob', amount: 15, note: 'Test B3' },
+      data: { payer_handle: 'bob', amount: 15, note: 'Test B3' },
     });
-    const requestId = (await createReq.json()).id;
+    const requestId = (await createReq.json()).request_id;
 
     // Bob declines
     const declineReq = await page.request.post(`http://localhost:8080/requests/${requestId}/decline`, {
@@ -145,7 +145,7 @@ test.describe('Request actions', () => {
     const bobRequests = await page.request.get('http://localhost:8080/requests', {
       headers: { 'Authorization': `Bearer ${bobToken}` },
     }).then(r => r.json());
-    const req = bobRequests.requests.find((r: any) => r.id === requestId);
+    const req = bobRequests.requests.find((r: any) => r.request_id === requestId);
     expect(req?.status).toBe('declined');
 
     // Bob's balance unchanged

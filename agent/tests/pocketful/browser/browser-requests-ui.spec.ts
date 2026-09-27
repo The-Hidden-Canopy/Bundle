@@ -39,7 +39,7 @@ test.describe('Requests UI', () => {
     const aliceToken = (await aliceLogin.json()).token;
     const createReq = await page.request.post(`${API_BASE}/requests`, {
       headers: { Authorization: `Bearer ${aliceToken}`, 'Idempotency-Key': 'br1-alice-bob', 'Content-Type': 'application/json' },
-      data: { from_handle: 'bob', amount: 10, note: 'BR1 test' },
+      data: { payer_handle: 'bob', amount: 10, note: 'BR1 test' },
     });
     expect(createReq.status()).toBe(201);
 
@@ -53,7 +53,7 @@ test.describe('Requests UI', () => {
 
     // The Alice→Bob request must NOT appear in Carol's lists
     const aliceRequest = await createReq.json();
-    await expect(page.locator(`#item-${aliceRequest.id}`)).not.toBeVisible();
+    await expect(page.locator(`#item-${aliceRequest.request_id}`)).not.toBeVisible();
   });
 
   test('BR2 — incoming-list and outgoing-list containers both present on /requests', async ({ page, pocketful }) => {
@@ -84,9 +84,9 @@ test.describe('Requests UI', () => {
     const bobToken = (await bobLogin.json()).token;
     const createReq = await page.request.post(`${API_BASE}/requests`, {
       headers: { Authorization: `Bearer ${bobToken}`, 'Idempotency-Key': 'br3-bob-alice', 'Content-Type': 'application/json' },
-      data: { from_handle: 'alice', amount: 20, note: 'BR3 test' },
+      data: { payer_handle: 'alice', amount: 20, note: 'BR3 test' },
     });
-    const reqId = (await createReq.json()).id;
+    const reqId = (await createReq.json()).request_id;
 
     // Alice sees the incoming request with a pay button (and decline button)
     await signInAsAndGotoRequests(page, 'a@test.local', 'Password1234!');
@@ -115,9 +115,9 @@ test.describe('Requests UI', () => {
     const aliceToken = (await aliceLogin.json()).token;
     const createReq = await page.request.post(`${API_BASE}/requests`, {
       headers: { Authorization: `Bearer ${aliceToken}`, 'Idempotency-Key': 'br4-alice-bob', 'Content-Type': 'application/json' },
-      data: { from_handle: 'bob', amount: 15, note: 'BR4 test' },
+      data: { payer_handle: 'bob', amount: 15, note: 'BR4 test' },
     });
-    const reqId = (await createReq.json()).id;
+    const reqId = (await createReq.json()).request_id;
 
     await signInAsAndGotoRequests(page, 'a@test.local', 'Password1234!');
 
@@ -144,9 +144,9 @@ test.describe('Requests UI', () => {
     const bobToken = (await bobLogin.json()).token;
     const createReq = await page.request.post(`${API_BASE}/requests`, {
       headers: { Authorization: `Bearer ${bobToken}`, 'Idempotency-Key': 'br5-bob-alice', 'Content-Type': 'application/json' },
-      data: { from_handle: 'alice', amount: 10, note: 'BR5 test' },
+      data: { payer_handle: 'alice', amount: 10, note: 'BR5 test' },
     });
-    const reqId = (await createReq.json()).id;
+    const reqId = (await createReq.json()).request_id;
 
     await signInAsAndGotoRequests(page, 'a@test.local', 'Password1234!');
     await expect(page.locator(`#request-pay-${reqId}`)).toBeVisible();

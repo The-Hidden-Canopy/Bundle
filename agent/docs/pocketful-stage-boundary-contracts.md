@@ -43,7 +43,7 @@
 
 | Endpoint | Method | Auth | Idempotency | Request body | Success | Error codes |
 |----------|--------|------|-------------|-------------|---------|-------------|
-| `POST /payments` | POST | Bearer | Required header | `{to_handle, amount, note?, visibility}` | 201 `{id, ...}` / 200 (replay) | `409 insufficient_funds`, `409 idempotency_key_reuse`, `422 validation_failed`, `401` |
+| `POST /payments` | POST | Bearer | Required header | `{to_handle, amount, note?, visibility}` | 201 `{payment_id, ...}` / 200 (replay) | `409 insufficient_funds`, `409 idempotency_key_reuse`, `422 validation_failed`, `401` |
 
 **Stage 2 delta:** `insufficient_funds` checked against `available` (not `balance`) — holds reduce effective funds.
 
@@ -62,7 +62,7 @@
 
 | Endpoint | Method | Auth | Query params | Response |
 |----------|--------|------|-------------|---------|
-| `GET /activity` | GET | Bearer | `limit`, `offset` | `{payments: [{id, from_handle, to_handle, amount, note, visibility, ...}], has_more}` |
+| `GET /activity` | GET | Bearer | `limit`, `offset` | `{payments: [{payment_id, from_handle, to_handle, amount, note, visibility, ...}], has_more}` |
 
 **UI obligations:**
 - Response array field is `payments` (not `items`)
@@ -75,7 +75,7 @@
 
 | Endpoint | Method | Auth | Idempotency | Request body | Success | Error codes |
 |----------|--------|------|-------------|-------------|---------|-------------|
-| `POST /requests` | POST | Bearer | Required | `{from_handle, amount, note?}` | 201 `{id, status: "pending", ...}` | `422`, `401` |
+| `POST /requests` | POST | Bearer | Required | `{payer_handle, amount, note?}` | 201 `{request_id, status: "pending", ...}` | `422`, `401` |
 | `GET /requests` | GET | Bearer | — | — | 200 `{requests: [{id, status, amount, ...}]}` | `401` |
 | `POST /requests/{id}/pay` | POST | Bearer | Required | `{}` | 201 | `403/404` (non-party), `409`, `401` |
 | `POST /requests/{id}/decline` | POST | Bearer | Required | `{}` | 200 | `403/404`, `401` |
