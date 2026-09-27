@@ -122,9 +122,19 @@ Idempotency key generated client-side (UUID), persisted in `localStorage` keyed 
 
 ## §7. Split Form (`/split`)
 
+**API body field:** `participant_handles` (array of handles). Caller may be included or omitted.
+
+**Response shape:** `{split_id, amount, currency, note, shares: [{handle, amount}], requests: [...], created_at}`
+- `shares`: all participants including caller, in order, sums to `amount`
+- `requests`: all participants except caller (caller is requester on each generated request)
+- A caller-only split produces `requests: []`
+- Never checks balance at creation time
+
 **DOM hooks:** `split-amount`, `split-handles`, `split-note`, `split-submit`, `split-preview`, `split-share-{handle}`, `split-error`
 
-**Client-side preview:** `split-preview` shows computed shares before submitting using the same floor-division + remainder-to-first-N algorithm as the server (Stage 1 §9). Client computes this locally. Preview must match submitted result.
+**Client-side preview:** `split-preview` shows all computed shares (including caller's own share) before submitting, using the same floor-division + remainder-to-first-N algorithm as the server (Stage 1 §9). Shares that will generate a payment request (all except caller) should be visually distinguished. Preview must match submitted result.
+
+**Error codes:** `422 validation_failed` (amount out of range, empty/duplicate handles, note > 200 chars); `404 not_found` (unknown handle).
 
 Decimal input accepted; converted to minor units.
 

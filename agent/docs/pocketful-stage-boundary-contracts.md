@@ -118,13 +118,25 @@
 
 | Endpoint | Method | Auth | Idempotency | Request body | Success | Error codes |
 |----------|--------|------|-------------|-------------|---------|-------------|
-| `POST /splits` | POST | Bearer | Required | `{amount, handles: [handle, ...], note?}` | 201 | `422`, `401` |
+| `POST /splits` | POST | Bearer | Required | `{amount, participant_handles: [handle, ...], note?}` | 201 `{split_id, amount, currency, note, shares: [{handle, amount}], requests: [...], created_at}` | `422 validation_failed`, `404 not_found`, `401` |
+
+**Response shape:**
+- `shares`: every participant including the caller, in the order given, always sums to `amount`
+- `requests`: every participant **except** the caller — caller is the requester on each generated payment request
+- Caller may be included in or omitted from `participant_handles`
+- A caller-only split is valid: produces one share, zero requests (`requests: []`)
+
+**Error codes:**
+- `amount` outside 1–1,000,000,000 or non-integer → `422 validation_failed`
+- Empty or duplicate-containing `participant_handles` → `422 validation_failed`
+- Note > 200 chars → `422 validation_failed`
+- Unknown handle → `404 not_found`
 
 **UI obligations:**
-- Client-side preview must use the same floor-division + remainder-to-first-N algorithm as the server
-- Preview computed locally in `split-preview` before submit
-
-*Note: exact endpoint path and body shape to be confirmed against spec §9 before implementation.*
+- Body field is `participant_handles` (not `handles`)
+- Client-side preview (`split-preview`) shows all shares including caller's own share; indicate which entries will generate payment requests (all except caller)
+- Preview must use same floor-division + remainder-to-first-N algorithm as the server
+- Splits never check balance at creation time — balance check only at pay time
 
 ---
 
