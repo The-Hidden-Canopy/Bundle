@@ -1,0 +1,22 @@
+# Local build output
+/build/
+/build-*/
+/out/
+
+# Python caches and local environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+
+# Supplied attachments and nested source snapshots are not public-repo content
+/.codex-remote-attachments/
+/BUNDLE/
+
+# Editor and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

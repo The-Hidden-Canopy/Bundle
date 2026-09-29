@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://the-hidden-canopy.org/schemas/bundle-connector-1/connector-batch.schema.json",
+  "title": "BUNDLE connector batch",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "connector_id",
+    "started_at",
+    "completed_at",
+    "accounts",
+    "balances",
+    "transactions",
+    "external_commitments",
+    "next_cursor",
+    "warnings"
+  ],
+  "properties": {
+    "schema": {"const": "bundle-connector-1"},
+    "connector_id": {"type": "string", "minLength": 1},
+    "started_at": {"type": "string", "format": "date-time"},
+    "completed_at": {"type": "string", "format": "date-time"},
+    "accounts": {"type": "array", "items": {"type": "object"}},
+    "balances": {"type": "array", "items": {"type": "object"}},
+    "transactions": {"type": "array", "items": {"type": "object"}},
+    "external_commitments": {"type": "array", "items": {"type": "object"}},
+    "next_cursor": {"type": ["string", "null"]},
+    "warnings": {"type": "array", "items": {"type": "string"}}
+  }
+}

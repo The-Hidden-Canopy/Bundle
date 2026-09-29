@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bundle-connectors"
+version = "0.1.0"
+description = "Dependency-free, bounded import and export tools for BUNDLE"
+requires-python = ">=3.11"
+license = {text = "Apache-2.0"}
+dependencies = []
+
+[project.scripts]
+bundle-csv-import = "bundle_connectors.csv_import:main"
+bundle-ofx-import = "bundle_connectors.ofx_import:main"
+
+[tool.setuptools.packages.find]
+include = ["bundle_connectors*"]

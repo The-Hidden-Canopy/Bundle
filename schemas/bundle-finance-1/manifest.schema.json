@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://the-hidden-canopy.org/schemas/bundle-finance-1/manifest.schema.json",
+  "title": "BUNDLE finance export manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "created_at", "files"],
+  "properties": {
+    "schema": {"const": "bundle-finance-1"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "bytes", "sha256"],
+        "properties": {
+          "path": {"type": "string", "pattern": "^[A-Za-z0-9._-]+$"},
+          "bytes": {"type": "integer", "minimum": 0},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,40 @@
+name: BUNDLE checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Configure C++ tests
+        run: cmake -S . -B build -DBUNDLE_BUILD_TESTS=ON
+
+      - name: Build C++ tests
+        run: cmake --build build --config Release --parallel
+
+      - name: Run C++ tests
+        run: ctest --test-dir build --build-config Release --output-on-failure
+
+      - name: Run Python connector tests
+        shell: bash
+        run: PYTHONPATH=connectors python -m unittest discover -s connectors/tests -v
+
+      - name: Validate JSON schemas
+        shell: bash
+        run: |
+          python -m json.tool schemas/bundle-connector-1/connector-batch.schema.json >/dev/null
+          python -m json.tool schemas/bundle-finance-1/manifest.schema.json >/dev/null
