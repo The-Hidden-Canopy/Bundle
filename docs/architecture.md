@@ -18,7 +18,7 @@ source reference -> canonical store -> deterministic projections
                                       +-> scenarios
 ```
 
-No UI, connector, model, or Riptide presentation layer writes financial truth
+No UI, connector, model, or external presentation layer writes financial truth
 directly. The C++ store is an append-only in-memory reference boundary. The
 tested Python SQLite admission bridge is a local persistence adapter over the
 same migration: it admits a complete connector batch transactionally, binds
@@ -45,5 +45,6 @@ revision history. Conflicting user-confirmed aliases remain unresolved.
 The current build proves source/unit behavior and the tested local Python
 SQLite admission boundary. It does not prove bank connectivity, fresh
 provider balances, financial advice, mobile behavior, remote CI for the
-native SQLite adapter, payment execution, or model/Riptide behavior. The OFX/QFX reader
+native SQLite adapter, payment execution, or external model behavior. The
+OFX/QFX reader
 is a local file parser, not a provider connector.
