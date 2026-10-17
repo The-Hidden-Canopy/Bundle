@@ -14,9 +14,26 @@ venv/
 # Supplied attachments and nested source snapshots are not public-repo content
 /.codex-remote-attachments/
 /BUNDLE/
+/private/
+/internal/
+/secrets/
+/data/
+/exports/
+*.sqlite
+*.sqlite3
+*.db
+*.db-wal
+*.db-shm
+*.jsonl
+*.log
+.env
+.env.*
 
 # Editor and operating-system files
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
+.github/workflows/ci.yml
+/.github/workflows
+scripts/check_public_boundary.py

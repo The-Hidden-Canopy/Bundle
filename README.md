@@ -9,6 +9,11 @@ follows the [Open Canopy Contract](OPEN_CANOPY_CONTRACT.md). The core must be
 useful without a BUNDLE account, a Hidden Canopy service, mandatory telemetry,
 cloud AI, or a hosted database.
 
+The public/private split is documented in
+[docs/public-private-boundary.md](docs/public-private-boundary.md). Provider
+credentials, hosted synchronization, payment rails, proprietary model
+services, and customer data remain outside this repository.
+
 ## Current status
 
 This checkout begins the first domain slice from the financial engineering
