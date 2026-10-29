@@ -1,15 +1,21 @@
 #pragma once
 
-// A check that stays active in Release builds (unlike assert under NDEBUG).
+// Test checks that are active in every build type.
+//
+// assert() is removed when NDEBUG is defined (CMake's Release and
+// RelWithDebInfo), which silently turns a Release test run into a no-op --
+// including any setup call written inside the assert. These macros never
+// depend on NDEBUG: a failed check prints its location and expression and
+// exits with status 1, so CTest reports the test as failed in every build.
+// CHECK is variadic so expressions containing top-level commas work unchanged.
 
 #include <cstdlib>
 #include <iostream>
-#include <string>
 
-#define CHECK(condition)                                                                           \
+#define CHECK(...)                                                                                 \
     do {                                                                                           \
-        if (!(condition)) {                                                                        \
-            std::cerr << __FILE__ << ":" << __LINE__ << ": CHECK failed: " #condition "\n";        \
+        if (!(__VA_ARGS__)) {                                                                      \
+            std::cerr << __FILE__ << ":" << __LINE__ << ": CHECK failed: " #__VA_ARGS__ "\n";      \
             std::exit(1);                                                                          \
         }                                                                                          \
     } while (false)
@@ -29,7 +35,7 @@
     do {                                                                                           \
         bool check_threw_ = false;                                                                 \
         try {                                                                                      \
-            static_cast<void>(statement);                                                                             \
+            static_cast<void>(statement);                                                          \
         } catch (const exception_type&) {                                                          \
             check_threw_ = true;                                                                   \
         }                                                                                          \

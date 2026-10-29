@@ -1,6 +1,6 @@
 #include "bundle/reconciliation.hpp"
+#include "bundle_test/check.hpp"
 
-#include <cassert>
 #include <string>
 
 namespace {
@@ -61,9 +61,9 @@ void transfer_matching_requires_distinct_accounts_and_preserves_truth() {
             transaction("same-account", "checking", 500, 1, bundle::TransactionDirection::credit),
         },
         60'000);
-    assert(matches.size() == 1);
-    assert(matches[0].outgoing_transaction_id == "out");
-    assert(matches[0].incoming_transaction_id == "in");
+    CHECK(matches.size() == 1);
+    CHECK(matches[0].outgoing_transaction_id == "out");
+    CHECK(matches[0].incoming_transaction_id == "in");
 }
 
 void refund_matching_links_returned_money_to_original_spend() {
@@ -74,10 +74,10 @@ void refund_matching_links_returned_money_to_original_spend() {
             transaction("income", "checking", 2'000, 20, bundle::TransactionDirection::credit),
         },
         30);
-    assert(matches.size() == 1);
-    assert(matches[0].original_transaction_id == "purchase");
-    assert(matches[0].refund_transaction_id == "refund");
-    assert(matches[0].days_after_original == 19);
+    CHECK(matches.size() == 1);
+    CHECK(matches[0].original_transaction_id == "purchase");
+    CHECK(matches[0].refund_transaction_id == "refund");
+    CHECK(matches[0].days_after_original == 19);
 }
 
 void weak_evidence_and_invalid_windows_fail_closed() {
@@ -87,14 +87,14 @@ void weak_evidence_and_invalid_windows_fail_closed() {
     auto ordinary_debit = transaction(
         "ordinary-debit", "checking", 1'000, 1, bundle::TransactionDirection::debit);
     ordinary_debit.merchant_raw = "GROCERY";
-    assert(bundle::recognize_refunds({ordinary_debit, ordinary_credit}, 30).empty());
+    CHECK(bundle::recognize_refunds({ordinary_debit, ordinary_credit}, 30).empty());
 
     auto cross_account_credit = transaction(
         "cross-credit", "savings", 1'000, 1, bundle::TransactionDirection::credit);
     cross_account_credit.merchant_raw = "PAYROLL";
-    assert(bundle::recognize_transfers({ordinary_debit, cross_account_credit}, 30).empty());
-    assert(bundle::recognize_transfers({ordinary_debit, cross_account_credit}, -1).empty());
-    assert(bundle::recognize_refunds({ordinary_debit, ordinary_credit}, -1).empty());
+    CHECK(bundle::recognize_transfers({ordinary_debit, cross_account_credit}, 30).empty());
+    CHECK(bundle::recognize_transfers({ordinary_debit, cross_account_credit}, -1).empty());
+    CHECK(bundle::recognize_refunds({ordinary_debit, ordinary_credit}, -1).empty());
 }
 
 }  // namespace

@@ -1,9 +1,10 @@
 add_executable(bundle_persistence_format_tests test_formats.cpp)
-target_link_libraries(bundle_persistence_format_tests PRIVATE bundle::persistence)
+target_link_libraries(bundle_persistence_format_tests PRIVATE bundle::persistence bundle_test_support)
 add_test(NAME bundle.persistence.formats COMMAND bundle_persistence_format_tests)
 
 add_executable(bundle_persistence_recovery_tests test_recovery.cpp)
-target_link_libraries(bundle_persistence_recovery_tests PRIVATE bundle::persistence SQLite::SQLite3)
+target_link_libraries(bundle_persistence_recovery_tests PRIVATE bundle::persistence SQLite::SQLite3
+    bundle_test_support)
 target_compile_definitions(bundle_persistence_recovery_tests PRIVATE
     BUNDLE_PARITY_FIXTURES="${PROJECT_SOURCE_DIR}/tests/parity/fixtures")
 if(MINGW)

@@ -22,7 +22,7 @@ from pathlib import Path
 
 from harness import (
     CSV_SOURCE, FIXTURES, SQLiteFinanceStore, add_planning_rows, batch_from_document, build_python_reference,
-    csv_batch, dump, file_sha256, fixture_document, materialize_fixture, native, tree, write_export,
+    csv_batch, dump, file_sha256, fixture_document, materialize_fixture, native, tree, unavailable, write_export,
 )
 
 UTC = timezone.utc
@@ -309,7 +309,7 @@ class ExamplePlanningArchive(unittest.TestCase):
     def test_cmake_packer_matches_python_reference_writer(self) -> None:
         cmake = shutil.which("cmake")
         if cmake is None:
-            self.skipTest("cmake not on PATH")
+            unavailable("cmake not on PATH")
         example = FIXTURES.parents[2] / "examples" / "native-sqlite"
         records = {name: json.loads((example / "planning-records" / name).read_text(encoding="utf-8"))
                    for name in ("accounts.json", "budgets.json", "commitments.json", "goals.json")}

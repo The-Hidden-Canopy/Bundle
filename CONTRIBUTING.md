@@ -18,9 +18,13 @@ Before opening a change:
 Run the local gates from the repository root:
 
 ```powershell
-cmake -S . -B build -DBUNDLE_BUILD_TESTS=ON
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUNDLE_BUILD_TESTS=ON
 cmake --build build --config Release
 ctest --test-dir build -C Release --output-on-failure
+
+# Negative control (not a CTest test): must exit 1 with "CHECK failed" in a Release build.
+# With Visual Studio generators the binary is under build/core/tests/Release/.
+./build/core/tests/bundle_check_negative_control
 
 $env:PYTHONPATH = "connectors"
 py -3 -m unittest discover -s connectors/tests -v

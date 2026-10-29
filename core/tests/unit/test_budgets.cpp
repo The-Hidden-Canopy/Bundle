@@ -1,6 +1,6 @@
 #include "bundle/budgets.hpp"
+#include "bundle_test/check.hpp"
 
-#include <cassert>
 #include <string>
 
 namespace {
@@ -83,12 +83,12 @@ void spent_and_pending_are_derived_from_transactions() {
         },
         bundle::UtcTimestamp::from_unix_millis(0),
         bundle::UtcTimestamp::from_unix_millis(3 * 86'400'000LL));
-    assert(std::holds_alternative<std::vector<bundle::BudgetAllocation>>(result));
+    CHECK(std::holds_alternative<std::vector<bundle::BudgetAllocation>>(result));
     const auto& allocation = std::get<std::vector<bundle::BudgetAllocation>>(result)[0];
-    assert(allocation.spent.minor_units == 250);
-    assert(allocation.pending.minor_units == 100);
-    assert(allocation.remaining.minor_units == 650);
-    assert(allocation.burn_rate_basis_points == 2'500);
+    CHECK(allocation.spent.minor_units == 250);
+    CHECK(allocation.pending.minor_units == 100);
+    CHECK(allocation.remaining.minor_units == 650);
+    CHECK(allocation.burn_rate_basis_points == 2'500);
 }
 
 void invalid_period_and_currency_drift_fail_closed() {
@@ -113,14 +113,14 @@ void invalid_period_and_currency_drift_fail_closed() {
     const auto invalid = bundle::project_budget_allocations(
         budget, {}, bundle::UtcTimestamp::from_unix_millis(2),
         bundle::UtcTimestamp::from_unix_millis(1));
-    assert(std::get<bundle::BudgetError>(invalid) == bundle::BudgetError::invalid_period);
+    CHECK(std::get<bundle::BudgetError>(invalid) == bundle::BudgetError::invalid_period);
 
     auto foreign = transaction("foreign", 1, 1, bundle::TransactionState::posted);
     foreign.amount.currency = *bundle::CurrencyCode::parse("JPY");
     const auto mismatch = bundle::project_budget_allocations(
         budget, {foreign}, bundle::UtcTimestamp::from_unix_millis(0),
         bundle::UtcTimestamp::from_unix_millis(2 * 86'400'000LL));
-    assert(std::get<bundle::BudgetError>(mismatch) == bundle::BudgetError::currency_mismatch);
+    CHECK(std::get<bundle::BudgetError>(mismatch) == bundle::BudgetError::currency_mismatch);
 }
 
 }  // namespace

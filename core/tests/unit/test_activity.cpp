@@ -1,6 +1,6 @@
 #include "bundle/activity.hpp"
+#include "bundle_test/check.hpp"
 
-#include <cassert>
 #include <optional>
 #include <string>
 #include <vector>
@@ -62,9 +62,9 @@ bundle::Transaction transaction(
 }
 
 void normalization_is_conservative_and_deterministic() {
-    assert(bundle::normalize_merchant_descriptor(
+    CHECK(bundle::normalize_merchant_descriptor(
                "ADOBE *CREATIVE CLD 4085366000 CA") == "Adobe Creative Cloud");
-    assert(bundle::normalize_merchant_descriptor("   1234 *** ").empty());
+    CHECK(bundle::normalize_merchant_descriptor("   1234 *** ").empty());
 }
 
 void user_correction_outranks_inference_and_conflicts_fail_closed() {
@@ -88,9 +88,9 @@ void user_correction_outranks_inference_and_conflicts_fail_closed() {
                 .user_confirmed = false,
             },
         });
-    assert(resolved.merchant_id.has_value());
-    assert(*resolved.merchant_id == "adobe");
-    assert(resolved.user_confirmed);
+    CHECK(resolved.merchant_id.has_value());
+    CHECK(*resolved.merchant_id == "adobe");
+    CHECK(resolved.user_confirmed);
 
     const auto conflict = bundle::resolve_merchant(
         fixture,
@@ -110,8 +110,8 @@ void user_correction_outranks_inference_and_conflicts_fail_closed() {
                 .user_confirmed = true,
             },
         });
-    assert(!conflict.merchant_id.has_value());
-    assert(conflict.confidence == bundle::Confidence::unknown);
+    CHECK(!conflict.merchant_id.has_value());
+    CHECK(conflict.confidence == bundle::Confidence::unknown);
 }
 
 void activity_uses_latest_revision_and_read_only_filters() {
@@ -153,11 +153,11 @@ void activity_uses_latest_revision_and_read_only_filters() {
             .include_removed = false,
             .include_reversed = false,
         });
-    assert(result.size() == 1);
-    assert(result[0].transaction.transaction_id == "tx-1-r2");
-    assert(result[0].transaction.amount.minor_units == 1'100);
-    assert(result[0].recurring);
-    assert(result[0].merchant.display_name == "Adobe Creative Cloud");
+    CHECK(result.size() == 1);
+    CHECK(result[0].transaction.transaction_id == "tx-1-r2");
+    CHECK(result[0].transaction.amount.minor_units == 1'100);
+    CHECK(result[0].recurring);
+    CHECK(result[0].merchant.display_name == "Adobe Creative Cloud");
 }
 
 }  // namespace

@@ -18,7 +18,7 @@ amalgamation (3.54.1) and verifies its published SHA3-256 before use. For an
 offline or shared build cache, point it at a local copy of the same zip:
 
 ```text
-cmake -S . -B build -DBUNDLE_BUILD_TESTS=ON
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUNDLE_BUILD_TESTS=ON
   [-DBUNDLE_SQLITE_AMALGAMATION_URL=/path/to/sqlite-amalgamation-3540100.zip]
 cmake --build build --config Release
 ctest --test-dir build -C Release --output-on-failure

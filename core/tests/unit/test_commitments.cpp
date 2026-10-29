@@ -1,6 +1,6 @@
 #include "bundle/commitments.hpp"
+#include "bundle_test/check.hpp"
 
-#include <cassert>
 #include <string>
 
 namespace {
@@ -63,13 +63,13 @@ void repeated_posted_debits_become_candidates_only() {
         transaction("pending", 2200, 90, bundle::TransactionState::pending),
     };
     const auto candidates = bundle::detect_recurring_candidates(transactions);
-    assert(candidates.size() == 1);
-    assert(candidates[0].status == bundle::CommitmentStatus::candidate);
-    assert(candidates[0].confidence == bundle::Confidence::inferred);
-    assert(!candidates[0].user_confirmed);
-    assert(candidates[0].amount_model.kind == bundle::AmountModelKind::fixed);
-    assert(candidates[0].related_transaction_ids.size() == 3);
-    assert(candidates[0].next_expected_at.unix_millis == 90LL * 86'400'000);
+    CHECK(candidates.size() == 1);
+    CHECK(candidates[0].status == bundle::CommitmentStatus::candidate);
+    CHECK(candidates[0].confidence == bundle::Confidence::inferred);
+    CHECK(!candidates[0].user_confirmed);
+    CHECK(candidates[0].amount_model.kind == bundle::AmountModelKind::fixed);
+    CHECK(candidates[0].related_transaction_ids.size() == 3);
+    CHECK(candidates[0].next_expected_at.unix_millis == 90LL * 86'400'000);
 }
 
 void variable_amounts_remain_ranges_and_weak_evidence_is_ignored() {
@@ -77,15 +77,15 @@ void variable_amounts_remain_ranges_and_weak_evidence_is_ignored() {
     auto second = transaction("t-2", 1500, 30);
     second.merchant_raw = "Example Streaming";
     const auto candidates = bundle::detect_recurring_candidates({first, second});
-    assert(candidates.size() == 1);
-    assert(candidates[0].amount_model.kind == bundle::AmountModelKind::range);
-    assert(candidates[0].amount_model.minimum->minor_units == 1000);
-    assert(candidates[0].amount_model.maximum->minor_units == 1500);
+    CHECK(candidates.size() == 1);
+    CHECK(candidates[0].amount_model.kind == bundle::AmountModelKind::range);
+    CHECK(candidates[0].amount_model.minimum->minor_units == 1000);
+    CHECK(candidates[0].amount_model.maximum->minor_units == 1500);
 
     auto without_posted_time = transaction("single", 1000, 30);
     without_posted_time.posted_at = std::nullopt;
     without_posted_time.authorized_at = std::nullopt;
-    assert(bundle::detect_recurring_candidates({without_posted_time}).empty());
+    CHECK(bundle::detect_recurring_candidates({without_posted_time}).empty());
 }
 
 }  // namespace

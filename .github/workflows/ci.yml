@@ -10,6 +10,10 @@ permissions:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
 
     steps:
       - name: Check out source
@@ -18,20 +22,53 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: ${{ matrix.python-version }}
 
-      - name: Configure C++ tests
-        run: cmake -S . -B build -DBUNDLE_BUILD_TESTS=ON
+      # Single-config generator: the build type must be set at configure time;
+      # `--config Release` on build/ctest alone does not make a Release build.
+      - name: Configure C++ (Release)
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUNDLE_BUILD_TESTS=ON
 
-      - name: Build C++ tests
+      - name: Verify Release configuration
+        shell: bash
+        run: |
+          grep -x 'CMAKE_BUILD_TYPE:STRING=Release' build/CMakeCache.txt
+
+      - name: Build C++
         run: cmake --build build --config Release --parallel
 
       - name: Run C++ tests
         run: ctest --test-dir build --build-config Release --output-on-failure
 
+      # A deliberately failing check must still fail under NDEBUG (risk R-012).
+      # Kept out of CTest so the normal suite stays all-passing.
+      - name: Negative control (failing check must exit 1 in Release)
+        shell: bash
+        run: |
+          set +e
+          ./build/core/tests/bundle_check_negative_control > control.out 2> control.err
+          status=$?
+          set -e
+          cat control.out control.err
+          test "$status" -eq 1
+          grep -q 'NDEBUG is defined' control.out
+          grep -q 'CHECK failed' control.err
+
       - name: Run Python connector tests
         shell: bash
         run: PYTHONPATH=connectors python -m unittest discover -s connectors/tests -v
+
+      # Python reference vs the native adapter. Strict mode turns a missing
+      # native binary or CMake into an error instead of a silent skip.
+      - name: Run native parity tests
+        shell: bash
+        env:
+          BUNDLE_PARITY_REQUIRE_NATIVE: "1"
+          BUNDLE_NATIVE_CLI: build/core/persistence/bundle
+        run: |
+          python -m unittest discover -s tests/parity -v 2>&1 | tee parity.log
+          grep -Eq '^Ran (1[4-9]|[2-9][0-9]) tests' parity.log
+          ! grep -q 'skipped=' parity.log
 
       - name: Validate JSON schemas
         shell: bash

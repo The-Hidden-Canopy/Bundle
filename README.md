@@ -57,7 +57,7 @@ admission bridge.
 From a clean checkout with CMake 3.20 or newer and a C++20 compiler:
 
 ```powershell
-cmake -S . -B build -DBUNDLE_BUILD_TESTS=ON
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUNDLE_BUILD_TESTS=ON
 cmake --build build --config Release
 ctest --test-dir build -C Release --output-on-failure
 

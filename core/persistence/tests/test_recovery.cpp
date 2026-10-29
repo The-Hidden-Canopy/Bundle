@@ -10,7 +10,7 @@
 #include "bundle/persistence/archive.hpp"
 #include "bundle/persistence/csv_import.hpp"
 #include "bundle/persistence/sqlite_store.hpp"
-#include "check.hpp"
+#include "bundle_test/check.hpp"
 
 #include <sqlite3.h>
 

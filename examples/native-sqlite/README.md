@@ -17,7 +17,7 @@ Files:
 From the repository root:
 
 ```text
-cmake -S . -B build -DBUNDLE_BUILD_TESTS=ON
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUNDLE_BUILD_TESTS=ON
 cmake --build build --config Release
 ```
 

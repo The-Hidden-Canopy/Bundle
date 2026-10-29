@@ -41,9 +41,17 @@ def native_cli() -> Path:
     for candidate in candidates:
         if candidate.is_file():
             return candidate
-    raise unittest.SkipTest(
+    unavailable(
         "native CLI not built; build with CMake or set BUNDLE_NATIVE_CLI to the bundle executable"
     )
+
+
+def unavailable(reason: str) -> None:
+    """Skip locally; fail when BUNDLE_PARITY_REQUIRE_NATIVE=1 (CI), so missing
+    parity coverage can never be reported as a pass."""
+    if os.environ.get("BUNDLE_PARITY_REQUIRE_NATIVE") == "1":
+        raise RuntimeError(f"parity prerequisite missing: {reason}")
+    raise unittest.SkipTest(reason)
 
 
 def native(*args: str | Path, expect: int | None = 0) -> subprocess.CompletedProcess[str]:
@@ -160,5 +168,5 @@ def materialize_fixture(name: str, destination: Path) -> Path:
 __all__ = [
     "FIXTURES", "IMPORTED_AT", "CSV_SOURCE", "SQLiteFinanceStore", "write_export", "native", "native_cli",
     "batch_from_document", "csv_batch", "fixture_document", "dump", "tree", "file_sha256", "add_planning_rows",
-    "build_python_reference", "materialize_fixture",
+    "build_python_reference", "materialize_fixture", "unavailable",
 ]

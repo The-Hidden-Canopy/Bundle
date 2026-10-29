@@ -5,7 +5,7 @@
 #include "bundle/persistence/csv_import.hpp"
 #include "bundle/persistence/json.hpp"
 #include "bundle/persistence/text.hpp"
-#include "check.hpp"
+#include "bundle_test/check.hpp"
 
 #include <limits>
 

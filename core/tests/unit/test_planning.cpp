@@ -1,6 +1,6 @@
 #include "bundle/planning.hpp"
+#include "bundle_test/check.hpp"
 
-#include <cassert>
 #include <chrono>
 #include <limits>
 #include <string>
@@ -83,31 +83,31 @@ bundle::ForecastRequest example_request(const bundle::ConfidenceMode mode) {
 void confirmed_and_expected_modes_do_not_collapse_confidence() {
     const auto confirmed = bundle::calculate_safe_to_spend(
         example_request(bundle::ConfidenceMode::confirmed));
-    assert(std::holds_alternative<bundle::SafeSpendResult>(confirmed));
-    assert(std::get<bundle::SafeSpendResult>(confirmed).amount.minor_units == 300);
+    CHECK(std::holds_alternative<bundle::SafeSpendResult>(confirmed));
+    CHECK(std::get<bundle::SafeSpendResult>(confirmed).amount.minor_units == 300);
 
     const auto expected = bundle::calculate_safe_to_spend(
         example_request(bundle::ConfidenceMode::expected));
-    assert(std::holds_alternative<bundle::SafeSpendResult>(expected));
-    assert(std::get<bundle::SafeSpendResult>(expected).amount.minor_units == 300);
+    CHECK(std::holds_alternative<bundle::SafeSpendResult>(expected));
+    CHECK(std::get<bundle::SafeSpendResult>(expected).amount.minor_units == 300);
 
     const auto stress = bundle::calculate_safe_to_spend(
         example_request(bundle::ConfidenceMode::stress));
-    assert(std::holds_alternative<bundle::SafeSpendResult>(stress));
-    assert(std::get<bundle::SafeSpendResult>(stress).expected_income_total.minor_units == 1'300);
+    CHECK(std::holds_alternative<bundle::SafeSpendResult>(stress));
+    CHECK(std::get<bundle::SafeSpendResult>(stress).expected_income_total.minor_units == 1'300);
 }
 
 void forecast_applies_timing_and_records_basis() {
     const auto request = example_request(bundle::ConfidenceMode::confirmed);
     const auto result = bundle::calculate_forecast(request);
-    assert(std::holds_alternative<bundle::Forecast>(result));
+    CHECK(std::holds_alternative<bundle::Forecast>(result));
     const auto& forecast = std::get<bundle::Forecast>(result);
-    assert(forecast.points.size() == 3);
-    assert(forecast.points[0].closing.minor_units == 1'500);
-    assert(forecast.points[1].closing.minor_units == 500);
-    assert(forecast.points[2].closing.minor_units == 1'300);
-    assert(forecast.points[1].contributing_event_ids.size() == 1);
-    assert(forecast.points[1].contributing_event_ids[0] == "rent");
+    CHECK(forecast.points.size() == 3);
+    CHECK(forecast.points[0].closing.minor_units == 1'500);
+    CHECK(forecast.points[1].closing.minor_units == 500);
+    CHECK(forecast.points[2].closing.minor_units == 1'300);
+    CHECK(forecast.points[1].contributing_event_ids.size() == 1);
+    CHECK(forecast.points[1].contributing_event_ids[0] == "rent");
 }
 
 void scenarios_are_overlays_and_never_mutate_request() {
@@ -121,11 +121,11 @@ void scenarios_are_overlays_and_never_mutate_request() {
         .description = std::string{"hypothetical purchase"},
     };
     const auto result = bundle::evaluate_scenario(request, scenario);
-    assert(std::holds_alternative<bundle::ScenarioComparison>(result));
+    CHECK(std::holds_alternative<bundle::ScenarioComparison>(result));
     const auto& comparison = std::get<bundle::ScenarioComparison>(result);
-    assert(comparison.before_safe_to_spend.minor_units == 300);
-    assert(comparison.after_safe_to_spend.minor_units == 50);
-    assert(request.events.size() == original_event_count);
+    CHECK(comparison.before_safe_to_spend.minor_units == 300);
+    CHECK(comparison.after_safe_to_spend.minor_units == 50);
+    CHECK(request.events.size() == original_event_count);
 }
 
 void explicit_planning_records_become_typed_events() {
@@ -191,13 +191,13 @@ void explicit_planning_records_become_typed_events() {
             .scope = "checking",
             .reason = "minimum floor",
         });
-    assert(std::holds_alternative<bundle::ForecastRequest>(request));
+    CHECK(std::holds_alternative<bundle::ForecastRequest>(request));
     const auto& built = std::get<bundle::ForecastRequest>(request);
-    assert(built.protected_floor.minor_units == 1'000);
-    assert(built.events.size() == 3);
-    assert(built.events[0].kind == bundle::ForecastEventKind::commitment);
-    assert(built.events[1].kind == bundle::ForecastEventKind::income);
-    assert(built.events[2].kind == bundle::ForecastEventKind::goal_contribution);
+    CHECK(built.protected_floor.minor_units == 1'000);
+    CHECK(built.events.size() == 3);
+    CHECK(built.events[0].kind == bundle::ForecastEventKind::commitment);
+    CHECK(built.events[1].kind == bundle::ForecastEventKind::income);
+    CHECK(built.events[2].kind == bundle::ForecastEventKind::goal_contribution);
 }
 
 void recurring_series_expand_with_month_end_clamping() {
@@ -233,27 +233,27 @@ void recurring_series_expand_with_month_end_clamping() {
         {},
         {},
         std::nullopt);
-    assert(std::holds_alternative<bundle::ForecastRequest>(result));
+    CHECK(std::holds_alternative<bundle::ForecastRequest>(result));
     const auto& request = std::get<bundle::ForecastRequest>(result);
-    assert(request.events.size() == 4);
-    assert(request.events[0].expected_at.unix_millis == day_millis(2026, 1, 31));
-    assert(request.events[1].expected_at.unix_millis == day_millis(2026, 2, 28));
-    assert(request.events[2].expected_at.unix_millis == day_millis(2026, 3, 31));
-    assert(request.events[3].expected_at.unix_millis == day_millis(2026, 4, 30));
+    CHECK(request.events.size() == 4);
+    CHECK(request.events[0].expected_at.unix_millis == day_millis(2026, 1, 31));
+    CHECK(request.events[1].expected_at.unix_millis == day_millis(2026, 2, 28));
+    CHECK(request.events[2].expected_at.unix_millis == day_millis(2026, 3, 31));
+    CHECK(request.events[3].expected_at.unix_millis == day_millis(2026, 4, 30));
 }
 
 void duplicate_event_ids_and_unbounded_ranges_fail_closed() {
     auto request = example_request(bundle::ConfidenceMode::confirmed);
     request.events[0].event_id = request.events[1].event_id;
     const auto duplicate = bundle::calculate_forecast(request);
-    assert(std::holds_alternative<bundle::ForecastError>(duplicate));
-    assert(std::get<bundle::ForecastError>(duplicate) == bundle::ForecastError::invalid_event);
+    CHECK(std::holds_alternative<bundle::ForecastError>(duplicate));
+    CHECK(std::get<bundle::ForecastError>(duplicate) == bundle::ForecastError::invalid_event);
 
     request = example_request(bundle::ConfidenceMode::confirmed);
     request.events[0].amount_model.kind = bundle::AmountModelKind::range;
     const auto unbounded = bundle::calculate_forecast(request);
-    assert(std::holds_alternative<bundle::ForecastError>(unbounded));
-    assert(std::get<bundle::ForecastError>(unbounded) ==
+    CHECK(std::holds_alternative<bundle::ForecastError>(unbounded));
+    CHECK(std::get<bundle::ForecastError>(unbounded) ==
            bundle::ForecastError::invalid_amount_model);
 }
 
@@ -261,21 +261,21 @@ void stale_and_negative_results_are_explicit_insights() {
     const auto request = example_request(bundle::ConfidenceMode::confirmed);
     const auto forecast_result = bundle::calculate_forecast(request);
     const auto safe_result = bundle::calculate_safe_to_spend(request);
-    assert(std::holds_alternative<bundle::Forecast>(forecast_result));
-    assert(std::holds_alternative<bundle::SafeSpendResult>(safe_result));
+    CHECK(std::holds_alternative<bundle::Forecast>(forecast_result));
+    CHECK(std::holds_alternative<bundle::SafeSpendResult>(safe_result));
     const auto insights = bundle::build_insights(
         std::get<bundle::Forecast>(forecast_result),
         std::get<bundle::SafeSpendResult>(safe_result),
         true);
-    assert(insights.size() == 1);
-    assert(insights[0].reason_code == bundle::InsightReason::stale_balance);
+    CHECK(insights.size() == 1);
+    CHECK(insights[0].reason_code == bundle::InsightReason::stale_balance);
 }
 
 void invalid_horizons_and_currency_mismatch_fail_closed() {
     auto request = example_request(bundle::ConfidenceMode::confirmed);
     request.horizon_end = bundle::UtcTimestamp::from_unix_millis(-1);
     const auto invalid = bundle::calculate_forecast(request);
-    assert(std::get<bundle::ForecastError>(invalid) == bundle::ForecastError::invalid_horizon);
+    CHECK(std::get<bundle::ForecastError>(invalid) == bundle::ForecastError::invalid_horizon);
 
     request = example_request(bundle::ConfidenceMode::confirmed);
     request.protected_floor = bundle::Money{
@@ -283,7 +283,7 @@ void invalid_horizons_and_currency_mismatch_fail_closed() {
         *bundle::CurrencyCode::parse("JPY"),
     };
     const auto mismatch = bundle::calculate_forecast(request);
-    assert(std::get<bundle::ForecastError>(mismatch) == bundle::ForecastError::currency_mismatch);
+    CHECK(std::get<bundle::ForecastError>(mismatch) == bundle::ForecastError::currency_mismatch);
 }
 
 void forecast_timestamp_limits_do_not_wrap() {
@@ -310,11 +310,11 @@ void forecast_timestamp_limits_do_not_wrap() {
         },
     };
     const auto result = bundle::calculate_forecast(request);
-    assert(std::holds_alternative<bundle::Forecast>(result));
+    CHECK(std::holds_alternative<bundle::Forecast>(result));
     const auto& forecast = std::get<bundle::Forecast>(result);
-    assert(forecast.points.size() == 1);
-    assert(forecast.points[0].closing.minor_units == 900);
-    assert(forecast.points[0].contributing_event_ids.size() == 1);
+    CHECK(forecast.points.size() == 1);
+    CHECK(forecast.points[0].closing.minor_units == 900);
+    CHECK(forecast.points[0].contributing_event_ids.size() == 1);
 }
 
 }  // namespace

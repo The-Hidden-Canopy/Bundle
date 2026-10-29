@@ -1,7 +1,7 @@
 #include "bundle/financial.hpp"
 #include "bundle/money.hpp"
+#include "bundle_test/check.hpp"
 
-#include <cassert>
 #include <cstdint>
 #include <limits>
 #include <string>
@@ -11,7 +11,7 @@ namespace {
 
 bundle::CurrencyCode currency(const std::string& value) {
     const auto parsed = bundle::CurrencyCode::parse(value);
-    assert(parsed.has_value());
+    CHECK(parsed.has_value());
     return *parsed;
 }
 
@@ -36,39 +36,39 @@ void money_rules_are_integer_and_currency_bound() {
     const bundle::Money three_dollars{300, usd};
 
     const auto sum = bundle::add(twelve_dollars, three_dollars);
-    assert(std::holds_alternative<bundle::Money>(sum));
-    assert(std::get<bundle::Money>(sum).minor_units == 1'500);
+    CHECK(std::holds_alternative<bundle::Money>(sum));
+    CHECK(std::get<bundle::Money>(sum).minor_units == 1'500);
 
     const auto mismatch = bundle::add(twelve_dollars, bundle::Money{300, jpy});
-    assert(std::get<bundle::MoneyError>(mismatch) ==
+    CHECK(std::get<bundle::MoneyError>(mismatch) ==
            bundle::MoneyError::currency_mismatch);
 
     const auto overflow = bundle::add(
         bundle::Money{std::numeric_limits<std::int64_t>::max(), usd},
         bundle::Money{1, usd});
-    assert(std::get<bundle::MoneyError>(overflow) == bundle::MoneyError::overflow);
+    CHECK(std::get<bundle::MoneyError>(overflow) == bundle::MoneyError::overflow);
 
-    assert(bundle::currency_exponent(usd) == 2);
-    assert(bundle::currency_exponent(jpy) == 0);
-    assert(!bundle::CurrencyCode::parse("usd").has_value());
-    assert(!bundle::CurrencyCode::parse("US").has_value());
+    CHECK(bundle::currency_exponent(usd) == 2);
+    CHECK(bundle::currency_exponent(jpy) == 0);
+    CHECK(!bundle::CurrencyCode::parse("usd").has_value());
+    CHECK(!bundle::CurrencyCode::parse("US").has_value());
 }
 
 void provenance_and_utc_boundary_are_required() {
     auto source = source_ref();
-    assert(!bundle::validate_source_ref(source).has_value());
+    CHECK(!bundle::validate_source_ref(source).has_value());
 
     source.content_hash.clear();
-    assert(bundle::validate_source_ref(source) ==
+    CHECK(bundle::validate_source_ref(source) ==
            bundle::FinancialError::invalid_content_hash);
 
     source.content_hash = "sha256:example";
-    assert(bundle::validate_source_ref(source) ==
+    CHECK(bundle::validate_source_ref(source) ==
            bundle::FinancialError::invalid_content_hash);
 
     source.content_hash = "sha256:0000000000000000000000000000000000000000000000000000000000000000";
     source.source_version = 0;
-    assert(bundle::validate_source_ref(source) ==
+    CHECK(bundle::validate_source_ref(source) ==
            bundle::FinancialError::invalid_source_version);
 }
 
@@ -92,14 +92,14 @@ void account_rejects_currency_drift_and_invalid_last_four() {
         .include_in_safe_to_spend = true,
         .include_in_net_position = true,
     };
-    assert(!bundle::validate_account(account).has_value());
+    CHECK(!bundle::validate_account(account).has_value());
 
     account.available_balance.currency = jpy;
-    assert(bundle::validate_account(account) == bundle::FinancialError::currency_mismatch);
+    CHECK(bundle::validate_account(account) == bundle::FinancialError::currency_mismatch);
 
     account.available_balance.currency = usd;
     account.last_four = "12";
-    assert(bundle::validate_account(account) == bundle::FinancialError::invalid_last_four);
+    CHECK(bundle::validate_account(account) == bundle::FinancialError::invalid_last_four);
 }
 
 void observations_and_revisions_preserve_history_boundaries() {
@@ -114,10 +114,10 @@ void observations_and_revisions_preserve_history_boundaries() {
         .source_ref = source,
         .status = bundle::BalanceObservationStatus::stale,
     };
-    assert(!bundle::validate_balance_observation(observation).has_value());
+    CHECK(!bundle::validate_balance_observation(observation).has_value());
 
     observation.recorded_at = bundle::UtcTimestamp::from_unix_millis(900);
-    assert(bundle::validate_balance_observation(observation) ==
+    CHECK(bundle::validate_balance_observation(observation) ==
            bundle::FinancialError::invalid_timestamp_order);
 
     auto transaction = bundle::Transaction{
@@ -141,10 +141,10 @@ void observations_and_revisions_preserve_history_boundaries() {
         .user_note = "",
         .user_tags = {},
     };
-    assert(!bundle::validate_transaction(transaction).has_value());
+    CHECK(!bundle::validate_transaction(transaction).has_value());
 
     transaction.supersedes_transaction_revision = 2;
-    assert(bundle::validate_transaction(transaction) ==
+    CHECK(bundle::validate_transaction(transaction) ==
            bundle::FinancialError::invalid_superseded_revision);
 }
 
