@@ -44,7 +44,8 @@ specification:
 - dependency-free C++20 build and unit tests;
 - a native C++ SQLite adapter and `bundle` CLI over the same migration and
   archive format, with parity, crash-recovery and end-to-end tests against the
-  Python reference (local, pending review; see `docs/native-sqlite-adapter.md`).
+  Python reference, run in CI on Python 3.11 and 3.12 (see
+  `docs/native-sqlite-adapter.md`).
 
 This is local source/unit and persistence-boundary evidence only. It is not a
 bank connector, financial adviser, payment rail, live-balance service, or
@@ -68,8 +69,8 @@ py -3 -m unittest discover -s connectors/tests -v
 The financial core is deliberately kept independent of commercial connector
 SDKs and UI frameworks. The SQLite migration schema, Python file-import tools,
 and a tested local Python admission bridge are present. A native C++ SQLite
-adapter (`core/persistence/`, risk R-003) is implemented locally and pending
-review; the phone UI remains a later layer. Run the native example in
+adapter (`core/persistence/`, risk R-003) is implemented and checked against
+the Python bridge in CI; the phone UI remains a later layer. Run the native example in
 `examples/native-sqlite/README.md` and the parity suite with
 `python -m unittest discover -s tests/parity -v` after building.
 

@@ -90,8 +90,8 @@ Older-schema fixtures are committed as SQL text under
 
 ## Known gaps
 
-- Parity was run with CPython 3.12 only; CI uses 3.11.
-- The CI workflow does not build or run the native adapter or the parity suite.
+- CI builds against the runner's system SQLite (3.45.1); the pinned
+  amalgamation path (3.54.1) is exercised only by local builds.
 - JSON Schema files under `schemas/` are not validated natively; the batch shape
   check mirrors `ConnectorBatch` and the schema's required/extra keys only.
 - Income streams are not read by the native calculation; it refuses to compute

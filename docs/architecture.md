@@ -25,7 +25,7 @@ same migration: it admits a complete connector batch transactionally, binds
 the source identity to the complete batch hash, preserves idempotent replays,
 and emits event-log entries. A native C++ SQLite adapter
 (`core/persistence/`, used by the `bundle` CLI) ports that bridge over the same
-migration and archive format; it is pending review and its compatibility
+migration and archive format; its compatibility
 evidence is in `docs/native-sqlite-adapter.md`.
 
 The Python bridge can export and restore the represented `bundle-finance-1`
