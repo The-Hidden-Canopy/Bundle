@@ -42,17 +42,36 @@ struct HistoryFilter final {
     std::optional<std::int64_t> limit;
 };
 
+// A hypothetical one-off outflow evaluated with bundle::evaluate_scenario.
+struct WhatIfSpend final {
+    std::int64_t amount_minor = 0;
+    std::string date;  // RFC 3339
+    std::string account_id;
+    std::optional<std::string> description;
+};
+
 struct SafeToSpendRequest final {
     std::string as_of;        // RFC 3339; becomes the forecast start and receipt time
     std::string horizon_end;  // RFC 3339
     std::string confidence_mode = "expected";  // confirmed | expected | stress
     std::int64_t protected_floor_minor = 0;
+    // false: compute only (nothing is written). A what-if is never recorded.
+    bool record = true;
+    std::optional<WhatIfSpend> what_if;
 };
 
 struct SafeToSpendReceipt final {
     std::string receipt_id;
     bool newly_recorded;
-    Json record;  // the receipt in bundle-finance-1 archive form
+    Json record;    // the receipt in bundle-finance-1 archive form
+    Json forecast;  // projected points (not part of the receipt or archive)
+    Json what_if;   // null, or the scenario comparison
+    bool stored = false;  // a receipt with this ID exists in the database
+};
+
+struct SnapshotOptions final {
+    std::int64_t transfer_window_hours = 72;
+    std::int64_t refund_window_days = 90;
 };
 
 class SqliteFinanceStore final {
@@ -71,6 +90,15 @@ public:
     // same ID; a changed batch reusing a source identity is rejected.
     std::string append_batch(const Json& batch_document);
 
+    // Runs the complete admission for a batch inside a transaction that is
+    // always rolled back: same validation and conflict checks, nothing written.
+    struct BatchPreview final {
+        std::string batch_id;
+        bool already_admitted;   // an identical batch was admitted before
+        std::int64_t new_events; // events the real admission would append
+    };
+    [[nodiscard]] BatchPreview preview_batch(const Json& batch_document);
+
     // Exports the represented slice as bundle-finance-1; refuses non-empty
     // tables the format cannot represent.
     void export_archive(const std::filesystem::path& destination, const std::string& created_at);
@@ -87,6 +115,11 @@ public:
     // commitments and goals, recorded as an append-only calculation receipt.
     SafeToSpendReceipt calculate_safe_to_spend(const SafeToSpendRequest& request);
 
+    // Read-only view for user interfaces: accounts, current transaction
+    // revisions classified by the core's transfer/refund recognizers, planning
+    // records, receipts, import batches, sources and export blockers.
+    [[nodiscard]] Json snapshot(const SnapshotOptions& options = {}) const;
+
     [[nodiscard]] sqlite3* handle() const noexcept { return db_; }
 
     // Test seam: called before each statement executed inside a write
@@ -99,6 +132,8 @@ private:
     friend class Transaction;
     sqlite3* db_ = nullptr;
     std::function<void(const std::string&)> hook_;
+    bool preview_only_ = false;
+    std::int64_t* preview_counter_ = nullptr;
 };
 
 // The connector-batch schema checks applied before admission

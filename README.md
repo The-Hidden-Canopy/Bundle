@@ -45,7 +45,10 @@ specification:
 - a native C++ SQLite adapter and `bundle` CLI over the same migration and
   archive format, with parity, crash-recovery and end-to-end tests against the
   Python reference, run in CI on Python 3.11 and 3.12 (see
-  `docs/native-sqlite-adapter.md`).
+  `docs/native-sqlite-adapter.md`);
+- a local web interface (`ui/`, `python -m bundle_ui`) over the native CLI:
+  safe-to-spend with its breakdown, activity, accounts, read-only plans,
+  statement import with previews, and verified backups (see `ui/README.md`).
 
 This is local source/unit and persistence-boundary evidence only. It is not a
 bank connector, financial adviser, payment rail, live-balance service, or
@@ -72,7 +75,9 @@ and a tested local Python admission bridge are present. A native C++ SQLite
 adapter (`core/persistence/`, risk R-003) is implemented and checked against
 the Python bridge in CI; the phone UI remains a later layer. Run the native example in
 `examples/native-sqlite/README.md` and the parity suite with
-`python -m unittest discover -s tests/parity -v` after building.
+`python -m unittest discover -s tests/parity -v` after building. Start the local
+interface with `PYTHONPATH=ui python -m bundle_ui --db <file> --open` and test it
+with `python -m unittest discover -s tests/ui -v`.
 
 ## Governance boundaries
 

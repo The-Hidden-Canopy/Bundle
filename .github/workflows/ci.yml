@@ -70,6 +70,17 @@ jobs:
           grep -Eq '^Ran (1[4-9]|[2-9][0-9]) tests' parity.log
           ! grep -q 'skipped=' parity.log
 
+      # Interface adapter and local server, driven through the native binary.
+      - name: Run interface tests
+        shell: bash
+        env:
+          BUNDLE_PARITY_REQUIRE_NATIVE: "1"
+          BUNDLE_NATIVE_CLI: build/core/persistence/bundle
+        run: |
+          python -m unittest discover -s tests/ui -v 2>&1 | tee ui.log
+          grep -Eq '^Ran (2[0-9]|[3-9][0-9]) tests' ui.log
+          ! grep -q 'skipped=' ui.log
+
       - name: Validate JSON schemas
         shell: bash
         run: |

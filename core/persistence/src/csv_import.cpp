@@ -242,13 +242,18 @@ Json import_csv(const std::string_view csv_text, const CsvImportOptions& options
         }
         const auto observed_at = parse_utc(field("observed_at"), "observed_at");
         const auto content_hash = sha256_hex(canonical_json(row));
-        accounts.try_emplace(account_id, Json::object({
-                                             {"account_id", Json::string(account_id)},
-                                             {"source_id", Json::string(options.source_id)},
-                                             {"display_name", Json::string(field("account_name"))},
-                                             {"account_type", Json::string(field("account_type"))},
-                                             {"currency", Json::string(currency)},
-                                         }));
+        if (!accounts.contains(account_id)) {
+            auto account = Json::object({
+                {"account_id", Json::string(account_id)},
+                {"source_id", Json::string(options.source_id)},
+                {"display_name", Json::string(field("account_name"))},
+                {"account_type", Json::string(field("account_type"))},
+                {"currency", Json::string(currency)},
+            });
+            // Omitted for version 1 so existing batch identities are unchanged.
+            if (options.source_version != 1) account.set("source_version", Json::integer(options.source_version));
+            accounts.emplace(account_id, std::move(account));
+        }
         const auto amount = python_int(field("amount_minor"), "amount_minor");
         if (amount < 0) fail("amount_minor cannot be negative");
         transactions.push_back(Json::object({

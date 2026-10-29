@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="bundle-session" content="__BUNDLE_SESSION_TOKEN__">
+  <title>Bundle by The Hidden Canopy</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="shell">
+    <aside class="sidebar" aria-label="Bundle">
+      <a class="brand" href="#/overview" aria-label="Bundle by The Hidden Canopy, Overview">
+        <span class="brand-mark" data-jar="logo"></span>
+        <span class="brand-text"><span class="brand-name">Bundle</span><span class="brand-by">by The Hidden Canopy</span></span>
+      </a>
+      <nav aria-label="Main">
+        <ul class="nav">
+          <li><a href="#/overview" data-route="overview"><span data-icon="home"></span>Overview</a></li>
+          <li><a href="#/activity" data-route="activity"><span data-icon="list"></span>Activity</a></li>
+          <li><a href="#/accounts" data-route="accounts"><span data-icon="card"></span>Accounts</a></li>
+          <li><a href="#/plan" data-route="plan"><span data-icon="chart"></span>Plan</a></li>
+          <li><a href="#/import" data-route="import"><span data-icon="doc"></span>Import &amp; backup</a></li>
+        </ul>
+        <ul class="nav nav-secondary">
+          <li><a href="#/guide" data-route="guide"><span data-icon="book"></span>Getting started</a></li>
+          <li><a href="#/help" data-route="help"><span data-icon="help"></span>Help</a></li>
+          <li><a href="#/settings" data-route="settings"><span data-icon="gear"></span>Settings</a></li>
+        </ul>
+      </nav>
+    </aside>
+    <div class="content">
+      <div id="banner" role="status" aria-live="polite"></div>
+      <main id="main" tabindex="-1"></main>
+      <footer class="statusbar" id="statusbar" aria-label="Data status"></footer>
+    </div>
+  </div>
+  <dialog id="help-dialog" aria-labelledby="help-title">
+    <div class="dialog-head">
+      <h2 id="help-title">Help</h2>
+      <button type="button" class="icon-button" data-close-dialog aria-label="Close help">&times;</button>
+    </div>
+    <div id="help-body"></div>
+  </dialog>
+  <dialog id="confirm-dialog" aria-labelledby="confirm-title">
+    <h2 id="confirm-title"></h2>
+    <p id="confirm-body"></p>
+    <div class="actions">
+      <button type="button" class="button" id="confirm-cancel">Cancel</button>
+      <button type="button" class="button primary" id="confirm-ok">Continue</button>
+    </div>
+  </dialog>
+  <script src="jar.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

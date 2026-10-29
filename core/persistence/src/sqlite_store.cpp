@@ -874,6 +874,25 @@ SqliteFinanceStore::~SqliteFinanceStore() {
     if (db_ != nullptr) sqlite3_close(db_);
 }
 
+SqliteFinanceStore::BatchPreview SqliteFinanceStore::preview_batch(const Json& batch) {
+    preview_only_ = true;
+    struct Reset {
+        bool& flag;
+        ~Reset() { flag = false; }
+    } reset{preview_only_};
+    auto c = connection_of(db_, nullptr);
+    const auto before = c.one("SELECT COUNT(*) FROM event_log")->at(0).as_int();
+    std::int64_t during = before;
+    preview_counter_ = &during;
+    struct ResetCounter {
+        std::int64_t*& counter;
+        ~ResetCounter() { counter = nullptr; }
+    } reset_counter{preview_counter_};
+    const auto batch_id = append_batch(batch);
+    const bool admitted = c.one("SELECT 1 FROM import_batches WHERE batch_id = ?", {Json::string(batch_id)}).has_value();
+    return BatchPreview{batch_id, admitted, during - before};
+}
+
 std::string SqliteFinanceStore::append_batch(const Json& batch) {
     validate_connector_batch(batch);
     if (!batch.get("external_commitments").as_array().empty()) {
@@ -946,6 +965,10 @@ std::string SqliteFinanceStore::append_batch(const Json& batch) {
                batch.get("next_cursor"),
                Json::string(dump_json(batch.get("warnings"), DumpOptions{.sort_keys = false, .ensure_ascii = true}))});
         adapter.ensure_event("import-batch:" + batch_id, "import_batch.admitted", batch_id, completed_at, batch_hash);
+        if (preview_only_) {
+            *preview_counter_ = c.one("SELECT COUNT(*) FROM event_log")->at(0).as_int();
+            return batch_id;  // WriteTransaction rolls back on scope exit
+        }
         transaction.commit();
     } catch (const SqliteError& error) {
         fail("SQLite admission rejected batch " + repr(batch_id) + ": " + error.what());

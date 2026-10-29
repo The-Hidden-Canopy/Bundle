@@ -59,6 +59,7 @@ add_library(bundle_persistence STATIC
     src/calculation.cpp
     src/csv_import.cpp
     src/json.cpp
+    src/snapshot.cpp
     src/sqlite_store.cpp
     src/text.cpp
     "${CMAKE_CURRENT_BINARY_DIR}/generated/embedded_migration.cpp"

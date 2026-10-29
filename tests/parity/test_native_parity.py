@@ -24,6 +24,7 @@ from harness import (
     CSV_SOURCE, FIXTURES, SQLiteFinanceStore, add_planning_rows, batch_from_document, build_python_reference,
     csv_batch, dump, file_sha256, fixture_document, materialize_fixture, native, tree, unavailable, write_export,
 )
+from bundle_connectors.csv_import import import_csv  # noqa: E402 (harness puts connectors on the path)
 
 UTC = timezone.utc
 CREATED_AT = "2026-01-06T00:00:00Z"
@@ -58,6 +59,33 @@ class ImportParity(unittest.TestCase):
         produced = native("csv-to-batch", "--source-id", CSV_SOURCE, "--imported-at", "2026-01-04T12:00:00Z",
                           FIXTURES / "statement.csv").stdout
         self.assertEqual(json.loads(produced), csv_batch().to_dict())
+
+    def test_later_csv_statement_continues_the_source_as_the_next_version(self) -> None:
+        later = ("account_id,account_name,account_type,currency,transaction_id,amount_minor,direction,state,"
+                 "description,observed_at\nchecking,Everyday Checking,Checking,USD,chk-004,4200,debit,posted,"
+                 "Lunch,2026-02-03T12:00:00Z\n")
+        with tempfile.TemporaryDirectory() as temporary:
+            temporary = Path(temporary)
+            path = temporary / "later.csv"
+            path.write_text(later, encoding="utf-8")
+            produced = json.loads(native("csv-to-batch", "--source-id", CSV_SOURCE, "--imported-at",
+                                         "2026-02-04T12:00:00Z", "--source-version", "2", path).stdout)
+            with path.open("r", encoding="utf-8", newline="") as stream:
+                reference = import_csv(stream, source_id=CSV_SOURCE, source_version=2,
+                                       imported_at=datetime(2026, 2, 4, 12, 0, tzinfo=UTC))
+            self.assertEqual(produced, reference.to_dict())
+            self.assertEqual(produced["accounts"][0]["source_version"], 2)
+            # Version 1 output is unchanged (no source_version key), so stored batch IDs stay valid.
+            self.assertNotIn("source_version", csv_batch().to_dict()["accounts"][0])
+            native("import-csv", "--db", temporary / "native.db", "--source-id", CSV_SOURCE, "--imported-at",
+                   "2026-01-04T12:00:00Z", FIXTURES / "statement.csv")
+            native("import-batch", "--db", temporary / "native.db", write_json(temporary / "b.json", produced))
+            with SQLiteFinanceStore(temporary / "python.db") as store:
+                store.append_batch(csv_batch())
+                store.append_batch(reference)
+            reference_rows, candidate_rows = dump(temporary / "python.db"), dump(temporary / "native.db")
+            for table in reference_rows:
+                self.assertEqual(candidate_rows[table], reference_rows[table], f"table {table} differs")
 
     def test_import_sequence_persists_identical_rows_and_event_order(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

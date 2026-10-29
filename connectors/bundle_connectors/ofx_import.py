@@ -181,6 +181,8 @@ def import_ofx(
             "display_name": display_name,
             "account_type": account_type,
             "currency": currency,
+            # Omitted for version 1 so existing batch identities are unchanged.
+            **({"source_version": source_version} if source_version != 1 else {}),
         },
     )
 

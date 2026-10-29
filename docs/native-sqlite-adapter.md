@@ -32,6 +32,16 @@ command; `examples/native-sqlite/README.md` walks through a full session.
 Library layout: `bundle_persistence` depends on `bundle_core` and SQLite;
 `bundle_core` gains no new dependency.
 
+Read-only and compute-only commands used by the local interface (`ui/`):
+`snapshot` prints a `bundle-snapshot-1` JSON view (accounts, current
+transactions with transfer/refund classification, balances, plan records,
+receipts, import batches); `calculate --json` adds the day-by-day forecast,
+`--no-record` computes without storing a receipt and `--what-if-minor/-date
+[-account]` evaluates a one-off purchase (never stored); `import-batch
+--dry-run` / `import-csv --dry-run` run the full admission in a transaction
+that is rolled back and print the batch ID and the events it would add. These
+are exercised by `tests/ui`; they have no Python-reference counterpart.
+
 ## Contract and evidence matrix
 
 | Contract (Python reference) | Native behavior | Evidence |
@@ -44,6 +54,7 @@ Library layout: `bundle_persistence` depends on `bundle_core` and SQLite;
 | Restore: manifest/size/SHA-256 checks, conflict-against-local-data detection, idempotent, regenerated events | Same verdicts and rows (except finding A) | `test_malformed_and_tampered_archives_are_rejected_without_writes` (9 tamper/malformation cases + late conflict), CLI end-to-end |
 | Calculation receipts: append-only, `sha256:` input hash, archive form regenerates the same event | Native computes safe-to-spend with the existing C++ planning engine and records the receipt keyed by its input hash; identical inputs record once | `CalculationParity` (independent arithmetic check, Python restores and re-exports native receipts byte-identically) |
 | CSV import (`csv_import.py`) | Same batch document (excel dialect, `str.strip()`, `int()` with `_`) | `test_csv_converts_to_the_identical_connector_batch`, `bundle.persistence.formats` |
+| Later statement (`source_version` > 1) | Same batch document; the account carries the version too (R-014) | `test_later_csv_statement_continues_the_source_as_the_next_version` |
 
 The Python bridge has no calculation engine, so "calculation parity" means: the
 native result is checked against an independently derived expected value for

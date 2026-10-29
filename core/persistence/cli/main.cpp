@@ -36,7 +36,10 @@ Commands:
                  Create or open a database and apply the schema migration.
   import-csv     --db FILE --source-id ID --imported-at TIME [--source-version N] CSV
                  Admit a canonical BUNDLE CSV statement (see docs/file-formats.md).
-  import-batch   --db FILE BATCH.json
+  import-batch   --db FILE [--dry-run] BATCH.json
+                 --dry-run (also for import-csv) runs the full admission and rolls it
+                 back: prints the batch ID, whether it was already admitted and how
+                 many events a real import would add. Nothing is written.
                  Admit a bundle-connector-1 batch document (e.g. from bundle-csv-import).
   csv-to-batch   --source-id ID --imported-at TIME [--source-version N] CSV
                  Print the bundle-connector-1 batch a CSV would produce. Read-only.
@@ -45,9 +48,15 @@ Commands:
   history        --db FILE [--object ID] [--type EVENT_TYPE] [--limit N] [--json]
                  Show the append-only event log in the order events were recorded.
   calculate      --db FILE --as-of TIME --horizon-end TIME [--mode confirmed|expected|stress]
-                 [--floor-minor N]
+                 [--floor-minor N] [--no-record] [--json]
+                 [--what-if-minor N --what-if-date TIME [--what-if-account ID]]
                  Compute safe-to-spend from persisted accounts, commitments and goals
-                 and record the result as a calculation receipt.
+                 and record the result as a calculation receipt. --no-record and any
+                 what-if compute only and write nothing. --json also prints the
+                 projected forecast points.
+  snapshot       --db FILE [--transfer-window-hours N] [--refund-window-days N]
+                 Print a read-only JSON view (accounts, classified transactions,
+                 planning records, receipts, imports, export blockers).
   export         --db FILE --created-at TIME DIR
                  Write a bundle-finance-1 archive to DIR (DIR must not exist).
   restore        --db FILE DIR
@@ -87,7 +96,7 @@ Args parse(int argc, char** argv) {
     Args args;
     if (argc < 2) throw UsageError("missing command");
     args.command = argv[1];
-    static const std::vector<std::string> boolean_flags = {"--json"};
+    static const std::vector<std::string> boolean_flags = {"--json", "--no-record", "--dry-run"};
     for (int i = 2; i < argc; ++i) {
         const std::string token = argv[i];
         if (token.rfind("--", 0) == 0) {
@@ -206,7 +215,9 @@ int run(const Args& args) {
         {"import-batch", {{"--db"}, 1}},
         {"accounts", {{"--db"}, 0}},
         {"history", {{"--db", "--object", "--type", "--limit"}, 0}},
-        {"calculate", {{"--db", "--as-of", "--horizon-end", "--mode", "--floor-minor"}, 0}},
+        {"calculate", {{"--db", "--as-of", "--horizon-end", "--mode", "--floor-minor", "--what-if-minor", "--what-if-date",
+                       "--what-if-account"}, 0}},
+        {"snapshot", {{"--db", "--transfer-window-hours", "--refund-window-days"}, 0}},
         {"export", {{"--db", "--created-at"}, 1}},
         {"restore", {{"--db"}, 1}},
     };
@@ -233,6 +244,13 @@ int run(const Args& args) {
         const auto floor = integer_option(args, "--floor-minor", 0);
         if (floor < 0) throw UsageError("--floor-minor must not be negative");
         calculation = SafeToSpendRequest{time_option(args, "--as-of"), time_option(args, "--horizon-end"), mode, floor};
+        calculation->record = !args.flag("--no-record");
+        if (args.get("--what-if-minor") || args.get("--what-if-date")) {
+            const auto amount = integer_option(args, "--what-if-minor", 0);
+            if (amount <= 0) throw UsageError("--what-if-minor must be a positive number of minor units");
+            calculation->what_if = WhatIfSpend{amount, time_option(args, "--what-if-date"),
+                                               args.get("--what-if-account").value_or(""), std::nullopt};
+        }
     }
     std::optional<std::string> created_at;
     if (cmd == "export") created_at = time_option(args, "--created-at");
@@ -254,6 +272,12 @@ int run(const Args& args) {
     SqliteFinanceStore store(require(args, "--db"));
     if (cmd == "init") {
         std::cout << "database ready: " << require(args, "--db") << " (schema migration 1)\n";
+    } else if (batch && args.flag("--dry-run")) {
+        const auto preview = store.preview_batch(*batch);
+        std::cout << dump_json(Json::object({{"batch_id", Json::string(preview.batch_id)},
+                                             {"already_admitted", Json::boolean(preview.already_admitted)},
+                                             {"new_events", Json::integer(preview.new_events)}}))
+                  << '\n';
     } else if (batch) {
         const auto before = store.history().size();
         const auto batch_id = store.append_batch(*batch);
@@ -297,13 +321,35 @@ int run(const Args& args) {
             std::cout << events.size() << " event(s)\n";
         }
     } else if (cmd == "calculate") {
-        const auto receipt = store.calculate_safe_to_spend(*calculation);
+        auto request = *calculation;
+        if (request.what_if && request.what_if->account_id.empty()) {
+            const auto accounts = store.accounts();
+            if (!accounts.empty()) request.what_if->account_id = python_str(accounts.front().get("account_id")).value_or("");
+        }
+        const auto receipt = store.calculate_safe_to_spend(request);
+        if (args.flag("--json")) {
+            std::cout << dump_json(Json::object({{"receipt", receipt.record},
+                                                 {"recorded", Json::boolean(receipt.newly_recorded)},
+                                                 {"stored", Json::boolean(receipt.stored)},
+                                                 {"forecast", receipt.forecast},
+                                                 {"what_if", receipt.what_if}}))
+                      << "\n";
+            return k_ok;
+        }
         const auto outputs = receipt.record.get("outputs");
         std::cout << "safe_to_spend_minor " << outputs.get("safe_to_spend_minor").as_int() << " "
                   << outputs.get("currency").as_string() << "\n"
-                  << "receipt " << receipt.receipt_id << (receipt.newly_recorded ? " (recorded)" : " (already recorded; identical inputs)")
+                  << "receipt " << receipt.receipt_id
+                  << (!request.record || request.what_if ? " (not recorded: compute only)"
+                      : receipt.newly_recorded            ? " (recorded)"
+                                                          : " (already recorded; identical inputs)")
                   << "\n"
                   << dump_json(receipt.record) << "\n";
+    } else if (cmd == "snapshot") {
+        SnapshotOptions options;
+        options.transfer_window_hours = integer_option(args, "--transfer-window-hours", 72);
+        options.refund_window_days = integer_option(args, "--refund-window-days", 90);
+        std::cout << dump_json(store.snapshot(options)) << "\n";
     } else if (cmd == "export") {
         store.export_archive(args.positional[0], *created_at);
         std::cout << "exported bundle-finance-1 archive to " << args.positional[0] << "\n";

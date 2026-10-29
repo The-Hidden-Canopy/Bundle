@@ -112,6 +112,8 @@ def import_csv(
                 "display_name": row["account_name"],
                 "account_type": row["account_type"],
                 "currency": currency,
+                # Omitted for version 1 so existing batch identities are unchanged.
+                **({"source_version": source_version} if source_version != 1 else {}),
             },
         )
         transactions.append(

@@ -238,6 +238,51 @@ SafeToSpendReceipt SqliteFinanceStore::calculate_safe_to_spend(const SafeToSpend
                  forecast_error_name(std::get<ForecastError>(calculated)));
         }
         const auto& result = std::get<SafeSpendResult>(calculated);
+        const auto& forecast_request = std::get<ForecastRequest>(built);
+
+        // Projected points for display; not part of the receipt or the archive.
+        Json::Array points;
+        if (const auto forecast = calculate_forecast(forecast_request); std::holds_alternative<Forecast>(forecast)) {
+            for (const auto& point : std::get<Forecast>(forecast).points) {
+                Json::Array ids;
+                for (const auto& id : point.contributing_event_ids) ids.push_back(Json::string(id));
+                points.push_back(Json::object({
+                    {"date", Json::string(millis_text(point.date))},
+                    {"opening_minor", money_json(point.opening)},
+                    {"inflows_minor", money_json(point.inflows)},
+                    {"outflows_minor", money_json(point.outflows)},
+                    {"closing_minor", money_json(point.closing)},
+                    {"floor_minor", money_json(point.floor)},
+                    {"event_ids", Json::array(std::move(ids))},
+                }));
+            }
+        }
+        Json what_if;
+        if (request.what_if) {
+            const auto& spend = *request.what_if;
+            if (spend.amount_minor <= 0) fail("what-if amount must be a positive number of minor units");
+            const auto evaluated = evaluate_scenario(
+                forecast_request, Scenario{Money{spend.amount_minor, *currency}, to_utc(spend.date, "what-if date"),
+                                           spend.account_id, std::nullopt, spend.description});
+            if (std::holds_alternative<ForecastError>(evaluated)) {
+                fail(std::string("what-if rejected: ") + forecast_error_name(std::get<ForecastError>(evaluated)));
+            }
+            const auto& comparison = std::get<ScenarioComparison>(evaluated);
+            Json::Array affected;
+            for (const auto& id : comparison.commitments_affected) affected.push_back(Json::string(id));
+            Json::Array notes;
+            for (const auto& note : comparison.warnings) notes.push_back(Json::string(note));
+            what_if = Json::object({
+                {"amount_minor", Json::integer(spend.amount_minor)},
+                {"date", Json::string(parse_timestamp(spend.date).value->text)},
+                {"safe_to_spend_before_minor", money_json(comparison.before_safe_to_spend)},
+                {"safe_to_spend_after_minor", money_json(comparison.after_safe_to_spend)},
+                {"minimum_balance_before_minor", money_json(comparison.minimum_projected_balance_before)},
+                {"minimum_balance_after_minor", money_json(comparison.minimum_projected_balance_after)},
+                {"commitments_affected", Json::array(std::move(affected))},
+                {"warnings", Json::array(std::move(notes))},
+            });
+        }
 
         const Json inputs = Json::object({
             {"engine", Json::string("bundle.safe_to_spend")},
@@ -287,6 +332,13 @@ SafeToSpendReceipt SqliteFinanceStore::calculate_safe_to_spend(const SafeToSpend
                             record.get("calculated_at"), Json::string(canonical_json(record.get("input_refs"))),
                             record.get("input_hash"), record.get("policy_id"), record.get("policy_version"),
                             Json::string(canonical_json(outputs))};
+        if (!request.record || request.what_if) {
+            // Compute-only: the write transaction is rolled back when it goes out of scope.
+            const bool known = c.one("SELECT 1 FROM calculation_receipts WHERE receipt_id = ?",
+                                     {record.get("receipt_id")}).has_value();
+            return SafeToSpendReceipt{receipt_id, false, record, Json::array(std::move(points)), what_if,
+                                      known};
+        }
         const auto existing = c.one("SELECT receipt_id, engine, engine_version, calculated_at, input_refs_json, "
                                     "input_hash, policy_id, policy_version, outputs_json FROM calculation_receipts "
                                     "WHERE receipt_id = ?",
@@ -314,7 +366,7 @@ SafeToSpendReceipt SqliteFinanceStore::calculate_safe_to_spend(const SafeToSpend
                   {Json::string(event_id), expected_event[0], expected_event[1], expected_event[2], expected_event[3]});
         }
         transaction.commit();
-        return SafeToSpendReceipt{receipt_id, inserted, record};
+        return SafeToSpendReceipt{receipt_id, inserted, record, Json::array(std::move(points)), what_if, true};
     } catch (const SqliteError& error) {
         fail(std::string("SQLite calculation receipt failed: ") + error.what());
     }
