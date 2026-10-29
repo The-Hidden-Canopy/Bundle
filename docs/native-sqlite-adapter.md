@@ -52,14 +52,16 @@ restore/export path unchanged. It is not a comparison of two calculators.
 
 ## Deliberate differences
 
-These are fail-closed narrowings or documented-contract corrections. None makes
-the native path accept data the reference would reject, except finding B.
+Rows A-C were bugs in the Python bridge found by the parity suite; they are
+fixed in both implementations (R-010, R-011, R-013), so both now behave as the
+right-hand column describes. The remaining rows are fail-closed narrowings of
+the native path.
 
 | Area | Python reference | Native |
 | --- | --- | --- |
-| A. Restore of commitment evidence with `related_transaction_id = NULL` | Matches keys with `=`, never finds the NULL row, inserts a duplicate on every restore (3 restores -> 3 copies), contrary to the documented idempotency | Matches keys with `IS`; restore is idempotent |
-| B. JSONL with raw U+2028/U+2029/U+0085 in text | Writes them raw (`ensure_ascii=False`) but reads with `str.splitlines()`, so it cannot restore its own export | Splits on `\n` only; restores it |
-| C. Opening a database that is then refused | Migrates (tables, triggers, WAL) before validating, so the refused file has been altered; `executescript` commits statement by statement | Validates first, migrates atomically; a refused file is untouched |
+| A. Restore of commitment evidence with `related_transaction_id = NULL` | Previously matched keys with `=`, never finds the NULL row, inserts a duplicate on every restore (3 restores -> 3 copies), contrary to the documented idempotency | Matches keys with `IS`; restore is idempotent |
+| B. JSONL with raw U+2028/U+2029/U+0085 in text | Previously wrote them raw (`ensure_ascii=False`) but reads with `str.splitlines()`, so it cannot restore its own export | Splits on `\n` only; restores it |
+| C. Opening a database that is then refused | Previously migrated (tables, triggers, WAL) before validating, so the refused file has been altered; `executescript` commits statement by statement | Validates first, migrates atomically; a refused file is untouched |
 | Timestamps | `datetime.fromisoformat` (very permissive) | Supported subset: `YYYY-MM-DD`/`YYYYMMDD`, `T` or space, `HH[:MM[:SS[.f]]]` or `HHMM[SS]`, `Z`/`±HH`/`±HHMM`/`±HH:MM[:SS[.f]]`. Output text identical. ISO week dates, other separators and `HH:MM:SS.` (no digits) are rejected |
 | Case folding (`str.lower()`/`upper()` on account type, currency, status, direction, state) | Unicode-aware | ASCII; non-ASCII input in these fields is rejected |
 | `str(value)` on JSON containers (e.g. a dict as `display_name`) | Stores the Python repr | Rejected |
@@ -79,10 +81,8 @@ python -m unittest discover -s tests/parity -v
 ```
 
 It needs the built `bundle` executable (or `BUNDLE_NATIVE_CLI=<path>`) and
-CMake on `PATH` for the example-archive check. Two tests are marked expected
-failures: they assert the documented contract against the Python reference for
-findings A and B and will start passing (and must then be un-marked) if the
-reference is fixed.
+CMake on `PATH` for the example-archive check. The `ReferenceFindings` tests
+assert the documented contract on both paths for findings A and B.
 
 Older-schema fixtures are committed as SQL text under
 `tests/parity/fixtures/legacy/` because the public boundary gate refuses binary

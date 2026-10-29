@@ -393,17 +393,15 @@ class MigrationParity(unittest.TestCase):
             python_before = file_sha256(python_malformed)
             with self.assertRaises(ValueError):
                 SQLiteFinanceStore(python_malformed)
-            # Recorded difference (finding C): the reference migrates before it validates,
-            # so its refusal has already altered the file. Same verdict; native is untouched.
-            self.assertNotEqual(file_sha256(python_malformed), python_before)
+            # R-013: a refused open must leave the file untouched on both paths.
+            self.assertEqual(file_sha256(python_malformed), python_before)
         for name, expected in FIXTURE_HASHES.items():
             self.assertEqual(file_sha256(FIXTURES / "legacy" / name), expected, f"{name} fixture was modified")
 
 
 class ReferenceFindings(unittest.TestCase):
-    """Behavior where the native adapter follows the documented contract and the
-    Python reference does not. Each is reported, not hidden: the Python-side
-    assertion is an expected failure until the reference is fixed."""
+    """Regression checks for reference bugs found by this suite (R-010, R-011):
+    both implementations must follow the documented contract."""
 
     def _evidence_archive(self, temporary: Path) -> Path:
         with SQLiteFinanceStore(temporary / "seed.db") as store:
@@ -424,7 +422,6 @@ class ReferenceFindings(unittest.TestCase):
             self.assertEqual(connection.execute("SELECT COUNT(*) FROM commitment_evidence").fetchone()[0], 2)
             connection.close()
 
-    @unittest.expectedFailure
     def test_A_python_reference_restore_is_idempotent_for_null_evidence_keys(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             temporary = Path(temporary)
@@ -433,7 +430,7 @@ class ReferenceFindings(unittest.TestCase):
                 for _ in range(3):
                     store.import_archive(archive)
                 count = store.connection.execute("SELECT COUNT(*) FROM commitment_evidence").fetchone()[0]
-            self.assertEqual(count, 2)  # reference currently yields 4
+            self.assertEqual(count, 2)  # was 4 before R-010 was fixed
 
     def _line_separator_archive(self, temporary: Path) -> Path:
         csv = (FIXTURES / "statement.csv").read_text(encoding="utf-8").replace("Payroll deposit", "Payroll\u2028deposit")
@@ -451,13 +448,14 @@ class ReferenceFindings(unittest.TestCase):
             self.assertEqual(dump(temporary / "native.db")["transaction_revisions"],
                              dump(temporary / "seed.db")["transaction_revisions"])
 
-    @unittest.expectedFailure
     def test_B_python_reference_restores_its_own_export_with_line_separators(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             temporary = Path(temporary)
             archive = self._line_separator_archive(temporary)
             with SQLiteFinanceStore(temporary / "python.db") as store:
-                store.import_archive(archive)  # reference raises: splitlines() splits U+2028
+                store.import_archive(archive)  # raised before R-011 was fixed
+            self.assertEqual(dump(temporary / "python.db")["transaction_revisions"],
+                             dump(temporary / "seed.db")["transaction_revisions"])
 
 
 if __name__ == "__main__":

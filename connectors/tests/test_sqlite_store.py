@@ -710,5 +710,64 @@ class SQLiteStoreTests(unittest.TestCase):
                     )
 
 
+    def test_repeated_restore_does_not_duplicate_null_keyed_evidence(self) -> None:
+        batch = import_csv(io.StringIO(CSV), source_id="csv-evidence", imported_at=datetime(2026, 1, 3, tzinfo=UTC))
+        with tempfile.TemporaryDirectory() as temporary:
+            archive = Path(temporary) / "bundle-finance-1"
+            with SQLiteFinanceStore(Path(temporary) / "finance.db") as store:
+                store.append_batch(batch)
+                store.connection.execute(
+                    "INSERT INTO commitments VALUES ('rent', 'Rent', NULL, '{}', 'USD', 'monthly', "
+                    "'2026-02-01T00:00:00Z', 0, 'housing', 'active', 'supported', 1, "
+                    "'2026-01-03T00:00:00Z', '2026-01-03T00:00:00Z')"
+                )
+                store.connection.execute(
+                    "INSERT INTO commitment_evidence VALUES ('rent', 'csv-evidence', 1, NULL)"
+                )
+                store.export_archive(archive, created_at=datetime(2026, 1, 4, tzinfo=UTC))
+            with SQLiteFinanceStore(Path(temporary) / "restored.db") as restored:
+                for _ in range(3):
+                    restored.import_archive(archive)
+                self.assertEqual(
+                    restored.connection.execute("SELECT COUNT(*) FROM commitment_evidence").fetchone()[0], 1
+                )
+
+    def test_archive_round_trips_text_with_unicode_line_separators(self) -> None:
+        text = CSV.replace("Paycheck", "Pay\u2028ch\u2029e\u0085ck")
+        batch = import_csv(io.StringIO(text), source_id="csv-separators", imported_at=datetime(2026, 1, 3, tzinfo=UTC))
+        with tempfile.TemporaryDirectory() as temporary:
+            archive = Path(temporary) / "bundle-finance-1"
+            with SQLiteFinanceStore(Path(temporary) / "finance.db") as store:
+                store.append_batch(batch)
+                store.export_archive(archive, created_at=datetime(2026, 1, 4, tzinfo=UTC))
+            with SQLiteFinanceStore(Path(temporary) / "restored.db") as restored:
+                restored.import_archive(archive)
+                self.assertEqual(
+                    restored.connection.execute(
+                        "SELECT description FROM transaction_revisions WHERE transaction_id = 't-2'"
+                    ).fetchone()[0],
+                    "Pay\u2028ch\u2029e\u0085ck",
+                )
+
+    def test_refused_open_leaves_the_database_file_untouched(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            database = Path(temporary) / "legacy.db"
+            connection = sqlite3.connect(database)
+            connection.execute(
+                "CREATE TABLE sources (source_id TEXT, source_kind TEXT, provider_id TEXT, "
+                "external_object_id TEXT, imported_at TEXT, observed_at TEXT, content_hash TEXT, "
+                "source_version INTEGER, metadata_json TEXT)"
+            )
+            connection.execute(
+                "INSERT INTO sources VALUES ('legacy', 'csv', NULL, NULL, '2026-01-01T00:00:00Z', "
+                "'2026-01-01T00:00:00Z', 'short', 1, '{}')"
+            )
+            connection.commit()
+            connection.close()
+            before = database.read_bytes()
+            with self.assertRaises(SQLiteStoreError):
+                SQLiteFinanceStore(database)
+            self.assertEqual(database.read_bytes(), before)
+
 if __name__ == "__main__":
     unittest.main()

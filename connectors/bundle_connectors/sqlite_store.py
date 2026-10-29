@@ -241,9 +241,22 @@ class SQLiteFinanceStore:
         self.connection.execute("PRAGMA foreign_keys = ON")
         self.connection.execute("PRAGMA busy_timeout = 5000")
         try:
-            self.connection.executescript(migration_path.read_text(encoding="utf-8"))
-            self.connection.commit()
+            # Validate existing rows before migrating so a refused database is left
+            # untouched, then apply the schema in one transaction. Leading PRAGMA
+            # lines (journal_mode cannot change inside a transaction) run afterwards.
             self._validate_persisted_hashes()
+            lines = migration_path.read_text(encoding="utf-8").split("\n")
+            split = 0
+            while split < len(lines) and (not lines[split].strip() or lines[split].lstrip().startswith("PRAGMA")):
+                split += 1
+            pragmas, body = "\n".join(lines[:split]), "\n".join(lines[split:])
+            try:
+                self.connection.executescript("BEGIN IMMEDIATE;\n" + body + "\nCOMMIT;")
+            except sqlite3.Error:
+                if self.connection.in_transaction:
+                    self.connection.rollback()
+                raise
+            self.connection.executescript(pragmas)
         except Exception:
             self.connection.close()
             raise
@@ -261,17 +274,25 @@ class SQLiteFinanceStore:
             self.connection.rollback()
         self.close()
 
+    def _table_exists(self, table: str) -> bool:
+        return self.connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", (table,)
+        ).fetchone() is not None
+
     def _validate_persisted_hashes(self) -> None:
-        source_rows = self.connection.execute(
-            "SELECT " + ", ".join(_SOURCE_COLUMNS) + " FROM sources"
-        ).fetchall()
-        for row in source_rows:
-            _archive_source(_row_dict(row, _SOURCE_COLUMNS), "stored source")
+        if self._table_exists("sources"):
+            source_rows = self.connection.execute(
+                "SELECT " + ", ".join(_SOURCE_COLUMNS) + " FROM sources"
+            ).fetchall()
+            for row in source_rows:
+                _archive_source(_row_dict(row, _SOURCE_COLUMNS), "stored source")
         for table, column, label in (
             ("event_log", "content_hash", "stored event"),
             ("forecast_runs", "input_hash", "stored forecast run"),
             ("calculation_receipts", "input_hash", "stored calculation receipt"),
         ):
+            if not self._table_exists(table):
+                continue
             for (value,) in self.connection.execute(f"SELECT {column} FROM {table}"):
                 _required_sha256(value, f"{label}.{column}")
 
@@ -930,7 +951,9 @@ class SQLiteFinanceStore:
     ) -> bool:
         if any(column not in record for column in columns):
             raise SQLiteStoreError(f"{label} is missing a required persisted field")
-        where = " AND ".join(f"{column} = ?" for column in key_columns)
+        # IS (not =) so a NULL key column, e.g. commitment_evidence.related_transaction_id,
+        # matches the existing row and a repeated restore does not insert a duplicate.
+        where = " AND ".join(f"{column} IS ?" for column in key_columns)
         existing = self.connection.execute(
             f"SELECT {', '.join(columns)} FROM {table} WHERE {where}",
             tuple(record[column] for column in key_columns),

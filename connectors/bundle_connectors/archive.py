@@ -210,7 +210,11 @@ def read_export(source: Path) -> dict[str, Any]:
         try:
             decoded = payload.decode("utf-8")
             if name.endswith(".jsonl"):
-                lines = decoded.splitlines()
+                # Split on "\n" only: str.splitlines() also breaks on U+2028, U+2029
+                # and U+0085, which json.dumps(ensure_ascii=False) writes unescaped.
+                lines = decoded.split("\n")
+                if lines and lines[-1] == "":
+                    lines.pop()
                 if any(not line.strip() for line in lines):
                     raise ConnectorContractError(f"export file contains a blank JSONL line: {name}")
                 parsed = [json.loads(line) for line in lines]
