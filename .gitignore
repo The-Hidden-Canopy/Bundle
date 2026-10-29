@@ -36,4 +36,3 @@ venv/
 Thumbs.db
 .github/workflows/ci.yml
 /.github/workflows
-scripts/check_public_boundary.py
