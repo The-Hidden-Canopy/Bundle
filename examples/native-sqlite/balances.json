@@ -1,0 +1,49 @@
+{
+  "schema": "bundle-connector-1",
+  "connector_id": "example-balances",
+  "started_at": "2026-01-04T12:00:00Z",
+  "completed_at": "2026-01-04T12:00:00Z",
+  "accounts": [],
+  "balances": [
+    {
+      "account_id": "checking",
+      "current_minor": 143125,
+      "available_minor": 141250,
+      "observed_at": "2026-01-04T11:00:00Z",
+      "status": "valid",
+      "source_ref": {
+        "source_id": "example-balance-feed",
+        "source_kind": "local_api",
+        "imported_at": "2026-01-04T12:00:00Z",
+        "observed_at": "2026-01-04T11:00:00Z",
+        "content_hash": "sha256:5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e",
+        "source_version": 1,
+        "metadata": {
+          "note": "synthetic balances for the native example"
+        }
+      }
+    },
+    {
+      "account_id": "savings",
+      "current_minor": 50000,
+      "available_minor": 50000,
+      "observed_at": "2026-01-04T11:00:00Z",
+      "status": "valid",
+      "source_ref": {
+        "source_id": "example-balance-feed",
+        "source_kind": "local_api",
+        "imported_at": "2026-01-04T12:00:00Z",
+        "observed_at": "2026-01-04T11:00:00Z",
+        "content_hash": "sha256:5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e",
+        "source_version": 1,
+        "metadata": {
+          "note": "synthetic balances for the native example"
+        }
+      }
+    }
+  ],
+  "transactions": [],
+  "external_commitments": [],
+  "next_cursor": null,
+  "warnings": []
+}

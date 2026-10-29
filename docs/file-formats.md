@@ -33,6 +33,10 @@ contains tables not represented by the archive bridge, export refuses to
 proceed rather than silently dropping records. Audit events are regenerated
 from restored records, including planning and receipt events.
 
+The native `bundle` CLI (`core/persistence/`) reads and writes the same format
+byte-for-byte; `docs/native-sqlite-adapter.md` lists where its reader is stricter
+or follows the documented contract more closely than the Python bridge.
+
 The export path rejects secret-looking fields such as passwords, credentials,
 access tokens, and private keys. Provider credentials do not belong in the
 finance archive.

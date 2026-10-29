@@ -41,7 +41,10 @@ specification:
   idempotency, full-batch source hashing, and event-bearing writes;
 - transactional `bundle-finance-1` archive export/restore for canonical and
   represented planning records, with refusal on unrepresented tables;
-- dependency-free C++20 build and unit tests.
+- dependency-free C++20 build and unit tests;
+- a native C++ SQLite adapter and `bundle` CLI over the same migration and
+  archive format, with parity, crash-recovery and end-to-end tests against the
+  Python reference (local, pending review; see `docs/native-sqlite-adapter.md`).
 
 This is local source/unit and persistence-boundary evidence only. It is not a
 bank connector, financial adviser, payment rail, live-balance service, or
@@ -65,8 +68,10 @@ py -3 -m unittest discover -s connectors/tests -v
 The financial core is deliberately kept independent of commercial connector
 SDKs and UI frameworks. The SQLite migration schema, Python file-import tools,
 and a tested local Python admission bridge are present. A native C++ SQLite
-adapter and phone UI remain later layers; neither is represented as complete
-by the current evidence.
+adapter (`core/persistence/`, risk R-003) is implemented locally and pending
+review; the phone UI remains a later layer. Run the native example in
+`examples/native-sqlite/README.md` and the parity suite with
+`python -m unittest discover -s tests/parity -v` after building.
 
 ## Governance boundaries
 

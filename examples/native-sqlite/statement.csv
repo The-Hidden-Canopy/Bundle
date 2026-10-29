@@ -1,0 +1,5 @@
+account_id,account_name,account_type,currency,transaction_id,amount_minor,direction,state,description,observed_at,merchant_raw
+checking,Everyday Checking,checking,USD,ex-001,240000,credit,posted,Synthetic payroll,2026-01-01T09:00:00Z,EXAMPLE EMPLOYER
+checking,Everyday Checking,checking,USD,ex-002,95000,debit,posted,"Rent, January",2026-01-02T15:30:00Z,EXAMPLE LANDLORD
+checking,Everyday Checking,checking,USD,ex-003,1875,debit,pending,Coffee beans,2026-01-03T08:15:00Z,EXAMPLE ROASTER
+savings,Rainy Day Savings,savings,USD,ex-101,50000,credit,posted,Transfer from checking,2026-01-02T00:00:00Z,

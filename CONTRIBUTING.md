@@ -24,6 +24,9 @@ ctest --test-dir build -C Release --output-on-failure
 
 $env:PYTHONPATH = "connectors"
 py -3 -m unittest discover -s connectors/tests -v
+
+# Python reference vs native SQLite adapter (needs the build above)
+py -3 -m unittest discover -s tests/parity -v
 ```
 
 Do not include live account data in issues, pull requests, fixtures, or test

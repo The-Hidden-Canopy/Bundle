@@ -28,3 +28,7 @@ endif()
 if(BUNDLE_BUILD_TESTS)
     add_subdirectory(tests)
 endif()
+
+if(BUNDLE_BUILD_NATIVE_SQLITE)
+    add_subdirectory(persistence)
+endif()

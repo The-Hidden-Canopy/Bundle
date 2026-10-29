@@ -1,0 +1,1 @@
+[{"currency":"USD","current_reserved_minor":50000,"goal_id":"buffer","name":"Emergency buffer","planned_contribution_minor":25000,"plans":[{"account_id":"checking","goal_id":"buffer"}],"priority":1,"protected":1,"status":"active","target_date":"2026-02-15T00:00:00Z","target_minor":300000}]

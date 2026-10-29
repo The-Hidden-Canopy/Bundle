@@ -1,0 +1,7 @@
+account_id,account_name,account_type,currency,transaction_id,amount_minor,direction,state,description,observed_at,merchant_raw
+checking,Everyday Checking,Checking,usd,chk-001,125000,credit,posted,Payroll deposit,2026-01-01T09:00:00Z,SYNTHETIC EMPLOYER
+checking,Everyday Checking,Checking,usd,chk-002,95000,debit,posted,"Rent, January",2026-01-02T10:30:00-05:00,SYNTHETIC LANDLORD
+
+checking,Everyday Checking,Checking,usd,chk-003,1_250,debit,pending,"Café ☕ ""oat"" latte
+second line",2026-01-03T08:15:00.5Z, CAFE SYNTH 
+savings,Rainy Day,savings,USD,sav-001,50000,credit,posted,Transfer in,2026-01-02T00:00:00+00:00,

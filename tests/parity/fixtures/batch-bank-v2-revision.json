@@ -1,0 +1,66 @@
+{
+  "schema": "bundle-connector-1",
+  "connector_id": "synthetic-bank",
+  "started_at": "2026-01-05T12:00:00Z",
+  "completed_at": "2026-01-05T12:00:00Z",
+  "accounts": [
+    {
+      "account_id": "card",
+      "source_id": "bank-export-7",
+      "source_version": 2,
+      "currency": "usd",
+      "display_name": "Synthetic Card (renamed)",
+      "institution_name": "Synthetic Credit Union",
+      "account_type": "Credit_Card",
+      "account_subtype": "rewards",
+      "last_four": "0042"
+    }
+  ],
+  "balances": [],
+  "transactions": [
+    {
+      "transaction_id": "card-001-r2",
+      "account_id": "card",
+      "source_transaction_id": "card-001",
+      "revision": 2,
+      "amount": {
+        "minor_units": 4150,
+        "currency": "USD"
+      },
+      "direction": "debit",
+      "transaction_state": "posted",
+      "merchant_raw": "SYNTH GROCER #12",
+      "merchant_id": null,
+      "description": "Groceries (adjusted)",
+      "category_id": "food",
+      "authorized_at": "2026-01-03T18:00:00+01:00",
+      "posted_at": "2026-01-04T00:00:00Z",
+      "observed_at": "2026-01-04T11:00:00Z",
+      "user_note": "weekly shop",
+      "user_tags": [
+        "groceries",
+        "wöchentlich"
+      ],
+      "source_ref": {
+        "source_id": "bank-export-7",
+        "source_kind": "local_api",
+        "provider_id": null,
+        "external_object_id": "export-7",
+        "imported_at": "2026-01-05T12:00:00Z",
+        "observed_at": "2026-01-04T11:59:00Z",
+        "content_hash": "sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+        "source_version": 2,
+        "metadata": {
+          "exporter": "synthetic",
+          "note": "naïve café ☕",
+          "pages": 2,
+          "ratio": 0.1
+        }
+      },
+      "supersedes_transaction_revision": 1
+    }
+  ],
+  "external_commitments": [],
+  "next_cursor": null,
+  "warnings": []
+}

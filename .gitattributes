@@ -1,0 +1,4 @@
+# Byte-exact synthetic fixtures: archive manifests pin SHA-256 digests and the
+# parity suite compares raw bytes, so no line-ending conversion on checkout.
+/tests/parity/fixtures/** -text
+/examples/native-sqlite/** -text

@@ -23,8 +23,10 @@ directly. The C++ store is an append-only in-memory reference boundary. The
 tested Python SQLite admission bridge is a local persistence adapter over the
 same migration: it admits a complete connector batch transactionally, binds
 the source identity to the complete batch hash, preserves idempotent replays,
-and emits event-log entries. A native C++ SQLite adapter remains a separate
-later layer.
+and emits event-log entries. A native C++ SQLite adapter
+(`core/persistence/`, used by the `bundle` CLI) ports that bridge over the same
+migration and archive format; it is pending review and its compatibility
+evidence is in `docs/native-sqlite-adapter.md`.
 
 The Python bridge can export and restore the represented `bundle-finance-1`
 slice through the archive format: accounts, balances, transactions,
@@ -42,6 +44,6 @@ revision history. Conflicting user-confirmed aliases remain unresolved.
 
 The current build proves source/unit behavior and the tested local Python
 SQLite admission boundary. It does not prove bank connectivity, fresh
-provider balances, financial advice, mobile behavior, native C++ SQLite
-integration, payment execution, or model/Riptide behavior. The OFX/QFX reader
+provider balances, financial advice, mobile behavior, remote CI for the
+native SQLite adapter, payment execution, or model/Riptide behavior. The OFX/QFX reader
 is a local file parser, not a provider connector.
