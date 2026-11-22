@@ -88,8 +88,8 @@ with `python -m unittest discover -s tests/ui -v`.
   source history.
 - Stale and unavailable states are explicit and cannot be silently presented as
   fresh data.
-- AI and Riptide are not part of this core and will not receive mutation
-  authority.
+- Optional automation and external adapters are not part of this core and will
+  not receive mutation authority.
 - Provider connectors will be read-only by default and optional.
 
 The authoritative design is the supplied BUNDLE financial engineering
