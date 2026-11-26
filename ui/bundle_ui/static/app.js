@@ -14,7 +14,7 @@
   const HORIZONS = [7, 14, 30, 60, 90];
   const EXPONENT = { JPY: 0, KWD: 3 };
 
-  const state = { workspace: null, snapshot: null, savedFloor: null, calc: null, calcError: null, preview: null, lastAction: null };
+  const state = { workspace: null, snapshot: null, savedFloor: null, floorUnverified: false, calc: null, calcError: null, preview: null, lastAction: null };
 
   // -- utilities ------------------------------------------------------------------------
   const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -42,7 +42,47 @@
   const daysAgo = (iso) => (Date.now() - new Date(iso).getTime()) / 86400000;
   const ago = (iso) => { const d = daysAgo(iso); return d < 1 ? "today" : d < 2 ? "1 day ago" : `${Math.floor(d)} days ago`; };
   const title = (text) => String(text || "").replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
-  const currencyOf = () => state.snapshot?.accounts?.[0]?.currency || "USD";
+  const includedCurrency = snapshot => {
+    const currencies = new Set((snapshot?.accounts || []).filter(a => a.include_in_safe_to_spend === 1 && a.status === "active").map(a => a.currency));
+    return currencies.size === 1 ? [...currencies][0] : null;
+  };
+  const currencyOf = () => state.calc?.receipt?.outputs?.currency || includedCurrency(state.snapshot) || state.snapshot?.accounts?.[0]?.currency || "USD";
+  function validSavedFloor(floor, snapshot) {
+    return !!floor && !!includedCurrency(snapshot) && floor.currency === includedCurrency(snapshot) && Number.isSafeInteger(floor.floor_minor) && floor.floor_minor >= 0;
+  }
+  // No FX is available; each currency remains a separate amount.
+  function currencyTotals(rows, amount) {
+    const totals = new Map();
+    for (const row of rows) {
+      const previous = totals.has(row.currency) ? totals.get(row.currency) : 0;
+      const value = amount(row), next = previous + value;
+      totals.set(row.currency, previous === null || !Number.isSafeInteger(value) || !Number.isSafeInteger(next) ? null : next);
+    }
+    return [...totals].sort(([a], [b]) => a.localeCompare(b));
+  }
+  function totalsLabel(totals) {
+    return totals.length ? totals.map(([code, amount]) => `${esc(code)} ${!Number.isSafeInteger(amount) ? "unavailable" : money(amount, code)}`).join(" / ") : "None";
+  }
+  function previewTotalsLabel(preview, key) {
+    if (Array.isArray(preview.currency_totals)) {
+      const rows = preview.currency_totals;
+      if (rows.some(t => !t || typeof t.currency !== "string" || !/^[A-Z]{3}$/.test(t.currency)) ||
+          new Set(rows.map(t => t.currency)).size !== rows.length) return "Unavailable";
+      return totalsLabel(rows.map(t => [t.currency, t[key]]));
+    }
+    // Old previews have only unscoped sums; prove currency using every transaction.
+    if (!Array.isArray(preview.sample) || !Number.isSafeInteger(preview.transaction_count) ||
+        preview.transaction_count !== preview.sample.length || !preview.sample.length) return "Unavailable; preview again";
+    const rows = preview.sample;
+    const currencies = new Set(rows.map(t => t?.currency));
+    if (currencies.size !== 1 || !/^[A-Z]{3}$/.test([...currencies][0]) ||
+        rows.some(t => !t || !Number.isSafeInteger(t.amount_minor) || t.amount_minor < 0 ||
+          !["debit", "credit"].includes(t.direction))) return "Unavailable; preview again";
+    const direction = key === "debits_minor" ? "debit" : "credit";
+    const verified = currencyTotals(rows, t => t.direction === direction ? t.amount_minor : 0);
+    if (!Number.isSafeInteger(preview[key]) || verified[0][1] !== preview[key]) return "Unavailable; preview again";
+    return totalsLabel(verified);
+  }
   const storeKey = (name) => `bundle:${state.workspace?.database || "none"}:${name}`;
   const remember = (name, value) => { try { localStorage.setItem(storeKey(name), JSON.stringify(value)); } catch (_) { /* storage optional */ } };
   const recall = (name, fallback) => { try { const v = localStorage.getItem(storeKey(name)); return v === null ? fallback : JSON.parse(v); } catch (_) { return fallback; } };
@@ -94,12 +134,17 @@
     const data = await api("/api/state");
     state.workspace = data.workspace;
     state.snapshot = data.snapshot;
-    state.savedFloor = data.saved_floor;
+    state.savedFloor = validSavedFloor(data.saved_floor, data.snapshot) ? data.saved_floor : null;
+    state.floorUnverified = !!data.saved_floor && !state.savedFloor;
   }
   async function loadCalc() {
     state.calc = null;
     state.calcError = null;
     if (!state.snapshot.accounts.length) return;
+    if (state.floorUnverified) {
+      state.calcError = new Error("The saved cash floor could not be verified in this currency. Set a new protected cash floor before calculating.");
+      return;
+    }
     const { mode, horizon } = settings();
     const floor = state.savedFloor ? state.savedFloor.floor_minor : 0;
     try {
@@ -115,22 +160,26 @@
 
   // -- shared pieces --------------------------------------------------------------------
   function protectedProgress() {
-    const goals = state.snapshot.goals.filter((g) => g.protected === 1 && g.status === "active");
-    const reserved = goals.reduce((sum, g) => sum + g.current_reserved_minor, 0);
-    const target = goals.reduce((sum, g) => sum + g.target_minor, 0);
-    const fraction = target > 0 ? reserved / target : 0;
-    return { goals, reserved, target, fraction, stage: stageFor(fraction) };
+    const goals = state.snapshot.goals.filter((g) => g.protected === 1 && g.status === "active" && g.currency === currencyOf());
+    const checkedSum = key => goals.length ? currencyTotals(goals, g => g[key])[0][1] : 0;
+    const reserved = checkedSum("current_reserved_minor");
+    const target = checkedSum("target_minor");
+    const fraction = reserved !== null && target > 0 ? reserved / target : 0;
+    return { goals, reserved, target, fraction, stage: reserved === null || target === null ? null : stageFor(fraction) };
   }
   function jarStages(current) {
     const names = { seeds: "Seeds", shoot: "Shoot", sprout: "Sprout" };
     return `<ol class="jar-stages" aria-label="Savings stages">${STAGES.map((st, i) => `<li${i === current ? ' aria-current="step" class="current"' : ""}>${jarSvg(i, { size: 36, decorative: true })}<span>${names[st]}${i === current ? '<span class="visually-hidden"> (current)</span>' : ""}</span></li>`).join("")}</ol>`;
   }
-  function jarBlock(reserved, target, name, { size = 72, stages = false } = {}) {
+  function jarBlock(reserved, target, name, { size = 72, stages = false, currency = currencyOf() } = {}) {
+    if (!Number.isSafeInteger(reserved) || !Number.isSafeInteger(target)) {
+      return `<div class="notice warn small">${esc(name)}: exact savings progress unavailable (amount exceeds display range).</div>`;
+    }
     const fraction = target > 0 ? Math.min(reserved / target, 1) : 0;
     const stage = stageFor(fraction);
     const pct = Math.round(fraction * 100);
     const words = target > 0
-      ? `${money(reserved, currencyOf())} of ${money(target, currencyOf())} reserved (${pct}%)`
+      ? `${money(reserved, currency)} of ${money(target, currency)} reserved (${pct}%)`
       : "No protected savings goal yet";
     const label = `${name}: ${words}. Jar shows ${STAGES[stage]}.`;
     return `<div class="jar-card">${jarSvg(stage, { size, label })}<div>` +
@@ -245,7 +294,7 @@
       const consistent = o.minimum_projected_balance_minor - o.protected_floor_minor === o.safe_to_spend_minor;
       const included = s.accounts.filter((a) => a.include_in_safe_to_spend === 1 && a.status === "active");
       sts = `<section class="card sts" aria-labelledby="sts-title">` +
-        `<div><div class="sts-headline">${jarSvg(protectedProgress().stage, { size: 64, decorative: true })}<div>` +
+        `<div><div class="sts-headline">${(protectedProgress().stage === null ? "" : jarSvg(protectedProgress().stage, { size: 64, decorative: true }))}<div>` +
         `<h2 id="sts-title">Safe to spend through ${esc(fmtDate(state.calc.horizon_end))}</h2>` +
         `<div class="sts-amount ${o.safe_to_spend_minor < 0 ? "below" : ""}">${money(o.safe_to_spend_minor, currency)}</div>` +
         `<p class="muted">After commitments, protected savings and your ${money(o.protected_floor_minor, currency)} cash floor, in the ${MODES[mode].label} view.</p></div></div>` +
@@ -282,27 +331,28 @@
       const isCounted = counted.has(`commitment:${c.commitment_id}`);
       const model = c.amount_model || {};
       const amount = model.primary ? money(model.primary.minor_units, model.primary.currency) : "—";
-      const range = model.kind === "range" && model.minimum && model.maximum ? ` · range ${money(model.minimum.minor_units, currency)}–${money(model.maximum.minor_units, currency)}` : "";
+      const range = model.kind === "range" && model.minimum && model.maximum ? ` · range ${money(model.minimum.minor_units, model.minimum.currency)}–${money(model.maximum.minor_units, model.maximum.currency)}` : "";
       const note = due < asOf ? "Date has passed — not projected; update the plan" : !inPeriod ? "After this period" : isCounted ? "Counted" : `Not counted (${MODES[mode].label})`;
       return `<li><span class="row-icon">${icon(/rent|housing/i.test(c.commitment_type + c.name) ? "house" : "bolt")}</span><div><div class="row-title">${esc(c.name)}</div><div class="row-sub">${esc(fmtDate(c.next_expected_at))} · ${esc(note)}${esc(range)}</div></div>${confidencePill(c.confidence)}<div class="amount">${amount}</div></li>`;
     }).join("");
     const inPeriodTotal = state.calc ? state.calc.receipt.outputs.commitment_total_minor : null;
 
     const recent = s.transactions.slice(0, 5).map((tx) => `<li><span class="row-icon">${txIcon(tx)}</span><div><div class="row-title">${esc(tx.description || tx.merchant_raw)}${stateText(tx)}</div><div class="row-sub">${esc(accountName(tx.account_id))} · ${esc(fmtDate(tx.posted_at || tx.authorized_at || tx.observed_at))}</div></div>${classificationPill(tx)}${txAmount(tx)}</li>`).join("");
-    const accountsTotal = s.accounts.reduce((sum, a) => sum + a.available_minor, 0);
+    const accountsTotal = currencyTotals(s.accounts, a => a.available_minor);
     const accountRows = s.accounts.map((a) => {
       const warnings = accountWarnings(a);
       return `<li><span class="row-icon">${icon("bank")}</span><div><div class="row-title">${esc(a.display_name)}</div><div class="row-sub">${a.last_four ? "•••• " + esc(a.last_four) + " · " : ""}observed ${esc(ago(a.balance_observed_at))}</div><div class="row-sub">${warnings.length ? '<span class="pill warn"><span class="dot"></span>Needs review</span>' : '<span class="pill observed">Observed</span>'}</div></div><span></span><div class="amount">${money(a.available_minor, a.currency)}</div></li>`;
     }).join("");
     const progress = protectedProgress();
+    const otherCurrencyGoals = s.goals.some(g => g.protected === 1 && g.status === "active" && g.currency !== currency);
 
     return pageHead("Overview", '<a class="button primary" href="#/import">' + icon("upload") + "Import statement</a>") +
       `<div class="grid grid-overview"><div class="stack">${sts}` +
       `<section class="card" aria-labelledby="outlook-title"><div class="card-head"><h2 id="outlook-title">Cash outlook</h2><span class="small muted">Projection from your plan — an estimate, not observed data</span></div>${state.calc ? chartBlock(state.calc.forecast, currency) : '<p class="muted">The outlook appears once safe-to-spend can be calculated.</p>'}</section>` +
       `<section class="card" aria-labelledby="recent-title"><div class="card-head"><h2 id="recent-title">Recent activity</h2><a href="#/activity">See all</a></div>${recent ? `<ul class="rows">${recent}</ul>` : '<p class="muted">No transactions yet. Import a statement to see them here.</p>'}</section></div>` +
       `<div class="stack"><section class="card" aria-labelledby="commit-title"><div class="card-head"><h2 id="commit-title">Upcoming commitments</h2>${inPeriodTotal !== null ? `<span class="small muted">Counted: <strong>${money(inPeriodTotal, currency)}</strong></span>` : ""}</div>${commitmentRows ? `<ul class="rows">${commitmentRows}</ul>` : '<p class="muted">No commitments in your plan. Commitments arrive with a bundle-finance-1 plan or backup (see Help).</p>'}</section>` +
-      `<section class="card" aria-labelledby="acct-title"><div class="card-head"><h2 id="acct-title">Accounts</h2><span class="small muted">Total available <strong>${money(accountsTotal, currency)}</strong></span></div><ul class="rows">${accountRows}</ul></section>` +
-      `<section class="card card-soft" aria-labelledby="jar-title"><h2 class="u-mb-m" id="jar-title">Protected savings</h2>${jarBlock(progress.reserved, progress.target, "Protected goals", { stages: progress.target > 0 })}</section>` +
+      `<section class="card" aria-labelledby="acct-title"><div class="card-head"><h2 id="acct-title">Accounts</h2><span class="small muted">Total available by currency <strong>${totalsLabel(accountsTotal)}</strong></span></div><ul class="rows">${accountRows}</ul></section>` +
+      `<section class="card card-soft" aria-labelledby="jar-title"><h2 class="u-mb-m" id="jar-title">Protected savings</h2>${jarBlock(progress.reserved, progress.target, "Protected goals (" + currency + ")", { stages: progress.target > 0 })}${otherCurrencyGoals ? '<p class="small muted">Goals in other currencies are shown individually in <a href="#/plan">Plan</a>.</p>' : ""}</section>` +
       `<section class="card card-soft"><h2>Make Bundle yours</h2>${guideSteps(true)}<p class="u-mt-m"><a href="#/guide">Open the getting-started guide →</a></p></section></div></div>`;
   }
 
@@ -321,16 +371,16 @@
       return !f.q || text.includes(f.q.toLowerCase());
     });
     const unmatchable = s.transactions.filter((tx) => !tx.matchable).length;
-    const spending = rows.filter((tx) => tx.classification === "spending" || tx.classification === "refunded_purchase").reduce((sum, tx) => sum + tx.amount_minor, 0);
-    const refunds = rows.filter((tx) => tx.classification === "refund").reduce((sum, tx) => sum + tx.amount_minor, 0);
-    const transfers = rows.filter((tx) => tx.classification === "transfer_out").reduce((sum, tx) => sum + tx.amount_minor, 0);
+    const spending = currencyTotals(rows.filter((tx) => tx.classification === "spending" || tx.classification === "refunded_purchase"), tx => tx.amount_minor);
+    const refunds = currencyTotals(rows.filter((tx) => tx.classification === "refund"), tx => tx.amount_minor);
+    const transfers = currencyTotals(rows.filter((tx) => tx.classification === "transfer_out"), tx => tx.amount_minor);
     const currency = currencyOf();
     return pageHead("Activity") +
       `<section class="card"><form class="filters" id="activity-filters" role="search" aria-label="Filter activity">` +
       `<label class="field">Account<select name="account"><option value="">All accounts</option>${s.accounts.map((a) => `<option value="${esc(a.account_id)}" ${f.account === a.account_id ? "selected" : ""}>${esc(a.display_name)}</option>`).join("")}</select></label>` +
       `<label class="field">Type<select name="kind">${[["", "Everything"], ["spending", "Spending"], ["income", "Money in"], ["transfer", "Transfers"], ["refund", "Refunds"]].map(([v, t]) => `<option value="${v}" ${f.kind === v ? "selected" : ""}>${t}</option>`).join("")}</select></label>` +
       `<label class="field">Search<input type="text" name="q" value="${esc(f.q)}" placeholder="Merchant, description or category"></label></form>` +
-      `<p class="small muted">${rows.length} shown · Spending ${money(spending, currency)} · Refunds back ${money(refunds, currency)} · Moved between accounts ${money(transfers, currency)} (not spending)</p>` +
+      `<p class="small muted">${rows.length} shown · Spending ${totalsLabel(spending)} · Refunds back ${totalsLabel(refunds)} · Moved between accounts ${totalsLabel(transfers)} (not spending)</p>` +
       `<div class="table-wrap"><table class="data"><caption class="visually-hidden">Transactions</caption><thead><tr><th>Date</th><th>Description</th><th class="col-opt">Category</th><th>Account</th><th class="col-opt">Source</th><th>Type</th><th class="amount">Amount</th></tr></thead><tbody>` +
       rows.map((tx) => `<tr><td class="mono">${esc(fmtDate(tx.posted_at || tx.authorized_at || tx.observed_at, true))}</td><td><div class="row-title">${esc(tx.description || "—")}${stateText(tx)}</div><div class="row-sub">${esc(tx.merchant_raw)}${tx.revision_count > 1 ? ` · revision ${tx.revision} of ${tx.revision_count}` : ""}</div></td><td class="col-opt">${esc(title(tx.category_id) || "—")}</td><td>${esc(accountName(tx.account_id))}</td><td class="col-opt small">${esc((tx.source_kind || "").toUpperCase())}<div class="row-sub">imported ${esc(fmtDate(tx.source_imported_at, true))}</div></td><td>${classificationPill(tx)}${tx.related_transaction_id ? `<div class="row-sub">with ${esc(tx.related_transaction_id)}</div>` : ""}</td><td class="amount">${txAmount(tx)}</td></tr>`).join("") +
       `</tbody></table></div>` +
@@ -363,9 +413,9 @@
     const currency = currencyOf();
     const protectedGoals = s.goals.filter((g) => g.protected === 1);
     const otherGoals = s.goals.filter((g) => g.protected !== 1);
-    const goalCards = protectedGoals.map((g) => `<div class="card card-soft">${jarBlock(g.current_reserved_minor, g.target_minor, g.name, { size: 64 })}<p class="u-mt-s small muted">Planned contribution ${money(g.planned_contribution_minor, g.currency)} by ${esc(fmtDate(g.target_date, true))} — subtracted from safe-to-spend when due in the period.</p></div>`).join("");
-    const budgets = s.budgets.map((b) => `<h3 class="u-mt-s">${esc(b.name)} <span class="small muted">(${esc(title(b.mode))}, from ${esc(fmtDate(b.starts_at, true))})</span></h3><div class="table-wrap"><table class="data"><thead><tr><th>Category</th><th class="amount">Limit</th><th class="amount">Spent</th><th class="amount">Pending</th><th class="amount">Remaining</th></tr></thead><tbody>${b.allocations.map((a) => `<tr><td>${esc(title(a.category_id))}</td><td class="amount">${money(a.limit_minor, currency)}</td><td class="amount">${money(a.spent_minor, currency)}</td><td class="amount">${money(a.pending_minor, currency)}</td><td class="amount">${money(a.remaining_minor, currency)}</td></tr>`).join("")}</tbody></table></div>`).join("");
-    const commitments = s.commitments.map((c) => { const m = c.amount_model || {}; return `<tr><td>${esc(c.name)}</td><td>${esc(title(c.cadence))}</td><td>${esc(fmtDate(c.next_expected_at, true))}</td><td>${confidencePill(c.confidence)}</td><td class="amount">${m.primary ? money(m.primary.minor_units, m.primary.currency) : "—"}${m.kind === "range" && m.minimum ? `<div class="row-sub">${money(m.minimum.minor_units, currency)}–${money(m.maximum.minor_units, currency)}</div>` : ""}</td></tr>`; }).join("");
+    const goalCards = protectedGoals.map((g) => `<div class="card card-soft">${jarBlock(g.current_reserved_minor, g.target_minor, g.name, { size: 64, currency: g.currency })}<p class="u-mt-s small muted">Planned contribution ${money(g.planned_contribution_minor, g.currency)} by ${esc(fmtDate(g.target_date, true))} — subtracted from safe-to-spend when due in the period.</p></div>`).join("");
+    const budgets = s.budgets.length && new Set(s.accounts.map(a => a.currency)).size > 1 ? '<p class="notice warn small">Budget currency is not recorded by this plan format. Amounts are hidden because the workspace contains multiple currencies.</p>' : s.budgets.map((b) => `<h3 class="u-mt-s">${esc(b.name)} <span class="small muted">(${esc(title(b.mode))}, from ${esc(fmtDate(b.starts_at, true))})</span></h3><div class="table-wrap"><table class="data"><thead><tr><th>Category</th><th class="amount">Limit</th><th class="amount">Spent</th><th class="amount">Pending</th><th class="amount">Remaining</th></tr></thead><tbody>${b.allocations.map((a) => `<tr><td>${esc(title(a.category_id))}</td><td class="amount">${money(a.limit_minor, currency)}</td><td class="amount">${money(a.spent_minor, currency)}</td><td class="amount">${money(a.pending_minor, currency)}</td><td class="amount">${money(a.remaining_minor, currency)}</td></tr>`).join("")}</tbody></table></div>`).join("");
+    const commitments = s.commitments.map((c) => { const m = c.amount_model || {}; return `<tr><td>${esc(c.name)}</td><td>${esc(title(c.cadence))}</td><td>${esc(fmtDate(c.next_expected_at, true))}</td><td>${confidencePill(c.confidence)}</td><td class="amount">${m.primary ? money(m.primary.minor_units, m.primary.currency) : "—"}${m.kind === "range" && m.minimum ? `<div class="row-sub">${money(m.minimum.minor_units, m.minimum.currency)}–${money(m.maximum.minor_units, m.maximum.currency)}</div>` : ""}</td></tr>`; }).join("");
     const whatIfDefault = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
     return pageHead("Plan") +
       '<div class="notice small">Plans are read-only in this version: Bundle\'s backend has no editing API for budgets, goals or commitments yet. They arrive with a bundle-finance-1 plan or backup. Your protected cash floor is set on the Overview.</div>' +
@@ -391,7 +441,7 @@
         : `<div class="notice ok"><h3>Ready to import</h3><p>Checked by a full trial import that was rolled back: ${p.new_events} new record${p.new_events === 1 ? "" : "s"} would be added.</p></div>`;
       const overlap = p.skipped_known ? `<p class="small muted">${p.skipped_known} row${p.skipped_known === 1 ? " is" : "s are"} already in Bundle unchanged and will be left out (statements often overlap).</p>` : "";
       preview = `<section class="u-mt-xl card" aria-labelledby="preview-title"><div class="card-head"><h2 id="preview-title">Preview: ${esc(p.filename)}</h2><span class="pill info">${esc(p.format.toUpperCase())}</span></div>${status}${overlap}` +
-        `<dl class="kv"><dt>Accounts</dt><dd>${p.accounts.length ? p.accounts.map((a) => esc(`${a.display_name || a.account_id} (${a.currency})`)).join(", ") : "Existing accounts"}</dd><dt>Transactions</dt><dd>${p.transaction_count}${p.first_date ? ` from ${esc(fmtDate(p.first_date, true))} to ${esc(fmtDate(p.last_date, true))}` : ""}</dd><dt>Balances</dt><dd>${p.balance_count}</dd><dt>Money out / in</dt><dd>${money(p.debits_minor)} / ${money(p.credits_minor)}</dd><dt>Source</dt><dd class="mono">${esc(p.source_id)}${p.source_version ? ` · version ${p.source_version}` : ""}</dd></dl>` +
+        `<dl class="kv"><dt>Accounts</dt><dd>${p.accounts.length ? p.accounts.map((a) => esc(`${a.display_name || a.account_id} (${a.currency})`)).join(", ") : "Existing accounts"}</dd><dt>Transactions</dt><dd>${p.transaction_count}${p.first_date ? ` from ${esc(fmtDate(p.first_date, true))} to ${esc(fmtDate(p.last_date, true))}` : ""}</dd><dt>Balances</dt><dd>${p.balance_count}</dd><dt>Money out / in by currency</dt><dd>${previewTotalsLabel(p, "debits_minor")} / ${previewTotalsLabel(p, "credits_minor")}</dd><dt>Source</dt><dd class="mono">${esc(p.source_id)}${p.source_version ? ` · version ${p.source_version}` : ""}</dd></dl>` +
         (p.sample.length ? `<div class="u-mt-m table-wrap"><table class="data"><thead><tr><th>Date</th><th>Description</th><th>State</th><th class="amount">Amount</th></tr></thead><tbody>${p.sample.map((t) => `<tr><td>${esc(fmtDate(t.date, true))}</td><td>${esc(t.description)}</td><td>${esc(title(t.state))}</td><td class="amount">${money(t.direction === "credit" ? t.amount_minor : -t.amount_minor, t.currency, { sign: true })}</td></tr>`).join("")}</tbody></table></div>` : "") +
         `<div class="u-mt-l actions"><button type="button" class="button primary" data-action="commit-import" ${p.committed && !p.retry ? "" : ""}>${p.already_imported ? "Import anyway (no change)" : "Import these records"}</button><button type="button" class="button" data-action="cancel-preview">Choose another file</button></div><div id="commit-result" aria-live="polite">${p.result || ""}</div></section>`;
     }
@@ -456,9 +506,9 @@
   function floorForm() {
     const current = state.savedFloor;
     const currency = currencyOf();
-    const disabled = !state.snapshot.accounts.length;
-    return `<p class="small muted">The amount Bundle never counts as spendable. Saved as part of a calculation receipt, so it is kept in backups.${current ? ` Current: <strong>${money(current.floor_minor, currency)}</strong>, saved ${esc(fmtDateTime(current.calculated_at))}.` : " Not set yet (treated as zero)."}</p>` +
-      `<form id="floor-form" class="filters"><label class="field">Floor<input type="text" name="floor" inputmode="decimal" value="${current ? (current.floor_minor / 10 ** (EXPONENT[currency] ?? 2)).toFixed(EXPONENT[currency] ?? 2) : ""}" placeholder="500.00" ${disabled ? "disabled" : ""}></label><button class="button primary" type="submit" ${disabled ? "disabled" : ""}>Save floor</button></form>${disabled ? '<p class="small muted">Import an account first.</p>' : ""}<div id="floor-result" aria-live="polite"></div>`;
+    const disabled = !includedCurrency(state.snapshot);
+    return `<p class="small muted">The amount Bundle never counts as spendable. Saved as part of a calculation receipt, so it is kept in backups.${current ? ` Current: <strong>${money(current.floor_minor, currency)}</strong>, saved ${esc(fmtDateTime(current.calculated_at))}.` : state.floorUnverified ? " Saved floor could not be verified; set a new value before calculating." : " Not set yet for this currency (treated as zero)."}</p>` +
+      `<form id="floor-form" class="filters"><label class="field">Floor<input type="text" name="floor" inputmode="decimal" value="${current ? (current.floor_minor / 10 ** (EXPONENT[currency] ?? 2)).toFixed(EXPONENT[currency] ?? 2) : ""}" placeholder="500.00" ${disabled ? "disabled" : ""}></label><button class="button primary" type="submit" ${disabled ? "disabled" : ""}>Save floor</button></form>${disabled ? '<p class="small muted">A single active included currency is required to set this floor.</p>' : ""}<div id="floor-result" aria-live="polite"></div>`;
   }
 
   function renderStatus() {
@@ -554,6 +604,7 @@
     } else if (action === "exit-demo") {
       await act(target, async () => { await api("/api/demo/exit", { method: "POST", body: {} }); location.hash = "#/overview"; await reloadAndRender(true); });
     } else if (action === "record-calc") {
+      if (state.floorUnverified) return;
       await act(target, async () => {
         const { mode, horizon } = settings();
         try {
@@ -667,6 +718,7 @@
       });
     } else if (form.id === "whatif-form") {
       const out = document.getElementById("whatif-result");
+      if (state.floorUnverified) { out.innerHTML = '<div class="notice error small" role="alert">Set a verified protected cash floor first.</div>'; return; }
       const minor = toMinor(form.amount.value, currencyOf());
       if (!minor) { out.innerHTML = '<div class="notice error small" role="alert">Enter an amount greater than zero with no more decimal places than the currency allows.</div>'; return; }
       await act(button, async () => {

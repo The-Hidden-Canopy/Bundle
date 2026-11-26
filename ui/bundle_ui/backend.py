@@ -196,12 +196,23 @@ class BundleBackend:
         return result
 
     def saved_floor(self, snapshot: dict[str, Any]) -> dict[str, Any] | None:
-        """The protected floor is persisted as an input of the latest calculation receipt."""
+        """Use only a receipt in the native calculation's single included currency."""
+        currencies = {a.get("currency") for a in snapshot["accounts"]
+                      if a.get("include_in_safe_to_spend") == 1 and a.get("status") == "active"}
+        if len(currencies) != 1 or None in currencies:
+            return None
+        currency = next(iter(currencies))
         for receipt in snapshot["receipts"]:
             outputs = receipt.get("outputs") or {}
-            if receipt.get("engine") == "bundle.safe_to_spend" and "protected_floor_minor" in outputs:
-                return {"floor_minor": outputs["protected_floor_minor"], "receipt_id": receipt["receipt_id"],
-                        "calculated_at": receipt["calculated_at"], "mode": receipt["policy_id"]}
+            if receipt.get("engine") != "bundle.safe_to_spend":
+                continue
+            if outputs.get("currency") not in (None, currency):
+                continue
+            floor = outputs.get("protected_floor_minor")
+            if outputs.get("currency") != currency or type(floor) is not int or not 0 <= floor <= 2**53 - 1:
+                return {"floor_minor": None, "currency": currency, "unavailable": True}
+            return {"floor_minor": floor, "currency": currency, "receipt_id": receipt["receipt_id"],
+                    "calculated_at": receipt["calculated_at"], "mode": receipt["policy_id"]}
         return None
 
     def history(self, limit: int = 100) -> list[dict[str, Any]]:
@@ -280,6 +291,13 @@ class BundleBackend:
                        check: dict[str, Any]) -> dict[str, Any]:
         transactions = batch.get("transactions", [])
         dates = sorted(t.get("posted_at") or t.get("observed_at") or "" for t in transactions)
+        by_currency: dict[str, dict[str, Any]] = {}
+        for transaction in transactions:
+            amount = transaction["amount"]
+            currency = amount["currency"]
+            totals = by_currency.setdefault(currency, {"currency": currency, "debits_minor": 0, "credits_minor": 0})
+            if transaction.get("direction") in ("debit", "credit"):
+                totals[transaction["direction"] + "s_minor"] += amount["minor_units"]
         summary = {
             "filename": filename,
             "format": file_format,
@@ -290,8 +308,10 @@ class BundleBackend:
             "balance_count": len(batch.get("balances", [])),
             "first_date": dates[0] if dates else None,
             "last_date": dates[-1] if dates else None,
-            "debits_minor": sum(t["amount"]["minor_units"] for t in transactions if t.get("direction") == "debit"),
-            "credits_minor": sum(t["amount"]["minor_units"] for t in transactions if t.get("direction") == "credit"),
+            "currency_totals": [by_currency[code] for code in sorted(by_currency)],
+            # Legacy fields are only meaningful when exactly one currency is present.
+            "debits_minor": next(iter(by_currency.values()))["debits_minor"] if len(by_currency) == 1 else None,
+            "credits_minor": next(iter(by_currency.values()))["credits_minor"] if len(by_currency) == 1 else None,
             "sample": [
                 {"transaction_id": t.get("transaction_id"), "date": t.get("posted_at") or t.get("observed_at"),
                  "description": t.get("description"), "direction": t.get("direction"),
