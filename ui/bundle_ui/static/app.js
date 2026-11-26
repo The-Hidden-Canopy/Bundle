@@ -25,12 +25,17 @@
     if (minor < 0) return "−" + text;
     return sign && minor > 0 ? "+" + text : text;
   }
+  // Reject ambiguous or inexact financial input instead of silently changing it.
   const toMinor = (text, currency = "USD") => {
-    const cleaned = String(text).replace(/[^0-9.]/g, "");
-    if (!cleaned) return null;
+    const input = String(text).trim();
     const exp = EXPONENT[currency] ?? 2;
-    const [whole, frac = ""] = cleaned.split(".");
-    return parseInt(whole || "0", 10) * 10 ** exp + parseInt((frac + "000").slice(0, exp) || "0", 10);
+    const match = /^(?:([0-9]+)|([0-9]{1,3}(?:,[0-9]{3})+))?(?:\.([0-9]+))?$/.exec(input);
+    if (!match || (!match[1] && !match[2] && !match[3])) return null;
+    const whole = (match[1] || match[2] || "0").replace(/,/g, "");
+    const frac = match[3] || "";
+    if (frac.length > exp) return null;
+    const result = Number(whole) * 10 ** exp + Number(frac.padEnd(exp, "0") || "0");
+    return Number.isSafeInteger(result) ? result : null;
   };
   const fmtDate = (iso, withYear = false) => iso ? new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", ...(withYear ? { year: "numeric" } : {}) }) : "—";
   const fmtDateTime = (iso) => iso ? new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }) : "—";
@@ -650,7 +655,7 @@
     } else if (form.id === "floor-form") {
       const minor = toMinor(form.floor.value, currencyOf());
       const out = document.getElementById("floor-result");
-      if (minor === null) { out.innerHTML = '<div class="notice error small" role="alert">Enter an amount such as 500.00.</div>'; return; }
+      if (minor === null) { out.innerHTML = '<div class="notice error small" role="alert">Enter a nonnegative amount with no more decimal places than the currency allows, such as 500.00.</div>'; return; }
       await act(button, async () => {
         const { mode, horizon } = settings();
         try {
@@ -663,7 +668,7 @@
     } else if (form.id === "whatif-form") {
       const out = document.getElementById("whatif-result");
       const minor = toMinor(form.amount.value, currencyOf());
-      if (!minor) { out.innerHTML = '<div class="notice error small" role="alert">Enter an amount greater than zero.</div>'; return; }
+      if (!minor) { out.innerHTML = '<div class="notice error small" role="alert">Enter an amount greater than zero with no more decimal places than the currency allows.</div>'; return; }
       await act(button, async () => {
         const { mode, horizon } = settings();
         try {
