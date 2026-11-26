@@ -103,3 +103,7 @@ by the user; it does not authenticate to, contact, or represent a bank.
 
 Apache License 2.0. See [LICENSE](LICENSE), [NOTICE](NOTICE), and the
 [Open Canopy Contract](OPEN_CANOPY_CONTRACT.md).
+
+## Download availability
+
+Official Hidden Canopy catalog: [Current download availability](https://thehiddencanopy.com/downloads.html#bundle). Source/build instructions above remain the reference for this repository.
