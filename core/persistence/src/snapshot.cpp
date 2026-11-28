@@ -171,6 +171,11 @@ Json SqliteFinanceStore::snapshot(const SnapshotOptions& options) const {
                 plan_accounts.push_back(plan[0]);
             }
             row.set("funding_account_ids", Json::array(std::move(plan_accounts)));
+            const auto provenance = c.one("SELECT created_at FROM user_overrides WHERE object_type = 'goal' "
+                                          "AND object_id = ? AND field = 'definition' "
+                                          "AND override_id LIKE 'local-goal-created:%' "
+                                          "ORDER BY created_at DESC, override_id LIMIT 1", {row.get("goal_id")});
+            row.set("user_created_at", provenance ? provenance->at(0) : Json{});
         }
         auto receipts = rows_to_objects(c, "SELECT * FROM calculation_receipts ORDER BY calculated_at DESC, receipt_id "
                                            "LIMIT 50");

@@ -99,6 +99,10 @@ public:
     };
     [[nodiscard]] BatchPreview preview_batch(const Json& batch_document);
 
+    // Creates an explicitly user-authored local savings goal and append-only
+    // provenance in one transaction. Identical request IDs retry safely.
+    Json create_local_goal(const Json& request);
+
     // Exports the represented slice as bundle-finance-1; refuses non-empty
     // tables the format cannot represent.
     void export_archive(const std::filesystem::path& destination, const std::string& created_at);

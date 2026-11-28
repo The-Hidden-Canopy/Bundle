@@ -47,7 +47,7 @@ specification:
   Python reference, run in CI on Python 3.11 and 3.12 (see
   `docs/native-sqlite-adapter.md`);
 - a local web interface (`ui/`, `python -m bundle_ui`) over the native CLI:
-  safe-to-spend with its breakdown, activity, accounts, read-only plans,
+  safe-to-spend with its breakdown, activity, accounts, create-only savings goals and read-only budgets/commitments,
   statement import with previews, and verified backups (see `ui/README.md`).
 
 This is local source/unit and persistence-boundary evidence only. It is not a

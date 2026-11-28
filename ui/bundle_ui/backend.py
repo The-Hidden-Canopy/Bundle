@@ -20,7 +20,7 @@ import sys
 import tempfile
 import threading
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -144,11 +144,12 @@ class BundleBackend:
         demo_db = self.user.database.parent / "bundle-demo" / "demo.db"
         with self._lock:
             build_demo_workspace(self, demo_db, anchor or self.clock())
-        self.active = Workspace(demo_db, demo=True)
+            self.active = Workspace(demo_db, demo=True)
         return self.workspace_info()
 
     def use_user_data(self) -> dict[str, Any]:
-        self.active = self.user
+        with self._lock:
+            self.active = self.user
         return self.workspace_info()
 
     # -- reads --------------------------------------------------------------------------
@@ -214,6 +215,39 @@ class BundleBackend:
             return {"floor_minor": floor, "currency": currency, "receipt_id": receipt["receipt_id"],
                     "calculated_at": receipt["calculated_at"], "mode": receipt["policy_id"]}
         return None
+
+    def create_goal(self, body: dict[str, Any]) -> dict[str, Any]:
+        """Admit a user-requested new local goal; the native store is authoritative."""
+        allowed = {"request_id", "name", "currency", "target_minor", "target_date", "protected", "workspace_database"}
+        if set(body) != allowed:
+            raise BackendError("Goal request has incomplete or unsupported fields.")
+        key, name, currency, amount, target_date, protected = (
+            body["request_id"], body["name"], body["currency"], body["target_minor"], body["target_date"], body["protected"])
+        if not isinstance(key, str) or not re.fullmatch(r"[0-9a-f]{32}", key):
+            raise BackendError("Goal request identity is invalid.")
+        if not isinstance(name, str) or not name.strip() or len(name.encode("utf-8")) > 240 or any(ord(c) < 32 or ord(c) == 127 for c in name):
+            raise BackendError("Enter a nonblank goal name without control characters (up to 240 UTF-8 bytes).")
+        if currency not in ("USD", "EUR", "GBP", "JPY", "KWD"):
+            raise BackendError("Choose a supported currency.")
+        if type(amount) is not int or not 0 < amount <= 2**53 - 1:
+            raise BackendError("Enter a positive exact amount in minor units.")
+        if type(protected) is not bool:
+            raise BackendError("Choose whether the goal is protected.")
+        if target_date is not None:
+            if not isinstance(target_date, str) or not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", target_date):
+                raise BackendError("Choose a valid target date.")
+            try:
+                target_date = date.fromisoformat(target_date).isoformat() + "T12:00:00Z"
+            except ValueError:
+                raise BackendError("Choose a valid target date.") from None
+        with self._lock, tempfile.TemporaryDirectory() as temporary:
+            if body["workspace_database"] != str(self.active.database):
+                raise BackendError("The workspace has changed; reopen Plan before creating a goal.", status=409)
+            path = Path(temporary) / "goal.json"
+            path.write_text(json.dumps({"request_id": key, "name": name, "currency": currency, "target_minor": amount,
+                                        "target_date": target_date, "protected": protected, "created_at": rfc3339(self.clock())},
+                                       ensure_ascii=False), encoding="utf-8")
+            return self._run("create-goal", *self._db(), path, expect_json=True)
 
     def history(self, limit: int = 100) -> list[dict[str, Any]]:
         output = self._run("history", *self._db(), "--json")

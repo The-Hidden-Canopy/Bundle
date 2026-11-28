@@ -408,19 +408,33 @@
       `<section class="u-mt-xl card"><h2>Import history</h2><p class="small muted">Balances are observations from your files, not live bank data. A balance older than ${s.stale_after_days} days is flagged by this interface; the status in each card is what the source reported.</p><div class="table-wrap"><table class="data"><thead><tr><th>Imported</th><th>Format</th><th>Batch</th></tr></thead><tbody>${imports}</tbody></table></div></section>`;
   }
 
+  function goalForm() {
+    const requestId = Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, "0")).join("");
+    const choices = ["USD", "EUR", "GBP", "JPY", "KWD"];
+    return `<section class="card" aria-labelledby="new-goal-title"><h2 id="new-goal-title">Create a savings goal</h2><p class="small muted">Add a local target, not a transfer. The amount reserved and planned contribution both begin at zero. Editing existing goals is not yet available.</p>` +
+      `<form class="filters" id="goal-form" data-request-id="${requestId}" data-workspace="${esc(state.workspace.database)}"><label class="field">Name<input name="goal_name" type="text" maxlength="120" required></label>` +
+      `<label class="field">Currency<select name="currency">${choices.map(code => `<option value="${code}" ${code === currencyOf() ? "selected" : ""}>${code}</option>`).join("")}</select></label>` +
+      '<label class="field">Target amount<input name="amount" type="text" inputmode="decimal" required></label><label class="field">Target date (optional)<input name="date" type="date"></label>' +
+      '<label class="field">Protected goal<select name="protected_goal"><option value="no">No</option><option value="yes">Yes</option></select></label><button type="submit" class="button primary">Create goal</button></form><div id="goal-result" aria-live="polite"></div></section>';
+  }
+
+  function goalProvenance(g) {
+    return g.user_created_at ? "User-authored locally, " + esc(fmtDateTime(g.user_created_at)) : "Recorded plan; no local creation receipt shown.";
+  }
+
   function renderPlan() {
     const s = state.snapshot;
     const currency = currencyOf();
     const protectedGoals = s.goals.filter((g) => g.protected === 1);
     const otherGoals = s.goals.filter((g) => g.protected !== 1);
-    const goalCards = protectedGoals.map((g) => `<div class="card card-soft">${jarBlock(g.current_reserved_minor, g.target_minor, g.name, { size: 64, currency: g.currency })}<p class="u-mt-s small muted">Planned contribution ${money(g.planned_contribution_minor, g.currency)} by ${esc(fmtDate(g.target_date, true))} — subtracted from safe-to-spend when due in the period.</p></div>`).join("");
+    const goalCards = protectedGoals.map((g) => `<div class="card card-soft">${jarBlock(g.current_reserved_minor, g.target_minor, g.name, { size: 64, currency: g.currency })}<p class="u-mt-s small muted">Planned contribution ${money(g.planned_contribution_minor, g.currency)} by ${esc(fmtDate(g.target_date, true))} — subtracted from safe-to-spend when due in the period.</p><p class="small muted">${goalProvenance(g)}</p></div>`).join("");
     const budgets = s.budgets.length && new Set(s.accounts.map(a => a.currency)).size > 1 ? '<p class="notice warn small">Budget currency is not recorded by this plan format. Amounts are hidden because the workspace contains multiple currencies.</p>' : s.budgets.map((b) => `<h3 class="u-mt-s">${esc(b.name)} <span class="small muted">(${esc(title(b.mode))}, from ${esc(fmtDate(b.starts_at, true))})</span></h3><div class="table-wrap"><table class="data"><thead><tr><th>Category</th><th class="amount">Limit</th><th class="amount">Spent</th><th class="amount">Pending</th><th class="amount">Remaining</th></tr></thead><tbody>${b.allocations.map((a) => `<tr><td>${esc(title(a.category_id))}</td><td class="amount">${money(a.limit_minor, currency)}</td><td class="amount">${money(a.spent_minor, currency)}</td><td class="amount">${money(a.pending_minor, currency)}</td><td class="amount">${money(a.remaining_minor, currency)}</td></tr>`).join("")}</tbody></table></div>`).join("");
     const commitments = s.commitments.map((c) => { const m = c.amount_model || {}; return `<tr><td>${esc(c.name)}</td><td>${esc(title(c.cadence))}</td><td>${esc(fmtDate(c.next_expected_at, true))}</td><td>${confidencePill(c.confidence)}</td><td class="amount">${m.primary ? money(m.primary.minor_units, m.primary.currency) : "—"}${m.kind === "range" && m.minimum ? `<div class="row-sub">${money(m.minimum.minor_units, m.minimum.currency)}–${money(m.maximum.minor_units, m.maximum.currency)}</div>` : ""}</td></tr>`; }).join("");
     const whatIfDefault = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
     return pageHead("Plan") +
-      '<div class="notice small">Plans are read-only in this version: Bundle\'s backend has no editing API for budgets, goals or commitments yet. They arrive with a bundle-finance-1 plan or backup. Your protected cash floor is set on the Overview.</div>' +
+      '<div class="notice small">Create a savings goal below. Editing existing goals, budgets and commitments is not available yet. Your protected cash floor is set on the Overview.</div>' + goalForm() +
       `<section class="card"><h2 class="u-mb-m">Protected savings goals</h2>${goalCards ? `<div class="u-grid-280 grid">${goalCards}</div>` : `<p class="muted">No protected goals yet. Protected goals are kept separate from spendable money.</p>`}` +
-      (otherGoals.length ? `<h3 class="u-mt-l">Other goals (not protected, not subtracted)</h3><ul class="rows">${otherGoals.map((g) => `<li><span class="row-icon">${jarSvg(stageFor(g.target_minor ? g.current_reserved_minor / g.target_minor : 0), { size: 32, decorative: true })}</span><div><div class="row-title">${esc(g.name)}</div><div class="row-sub">${money(g.current_reserved_minor, g.currency)} of ${money(g.target_minor, g.currency)}</div></div><span></span><span></span></li>`).join("")}</ul>` : "") + "</section>" +
+      (otherGoals.length ? `<h3 class="u-mt-l">Other goals (not protected, not subtracted)</h3><ul class="rows">${otherGoals.map((g) => `<li><span class="row-icon">${jarSvg(stageFor(g.target_minor ? g.current_reserved_minor / g.target_minor : 0), { size: 32, decorative: true })}</span><div><div class="row-title">${esc(g.name)}</div><div class="row-sub">${money(g.current_reserved_minor, g.currency)} of ${money(g.target_minor, g.currency)}</div><div class="row-sub">${goalProvenance(g)}</div></div><span></span><span></span></li>`).join("")}</ul>` : "") + "</section>" +
       `<section class="u-mt-xl card" aria-labelledby="whatif-title"><h2 id="whatif-title">What if I spend…</h2><p class="small muted">Tests a one-off purchase against your plan in the ${MODES[settings().mode].label} view. Nothing is saved.</p>` +
       `<form id="whatif-form" class="filters"><label class="field">Amount<input type="text" name="amount" inputmode="decimal" required placeholder="250.00"></label><label class="field">Date<input type="date" name="date" value="${whatIfDefault}" required></label><button class="button primary" type="submit">Check</button></form><div id="whatif-result" aria-live="polite"></div></section>` +
       `<section class="u-mt-xl card"><div class="card-head"><h2>Forecast</h2><span class="small muted">Next ${settings().horizon} days · ${MODES[settings().mode].label} view</span></div>${state.calc ? chartBlock(state.calc.forecast, currency) : state.calcError ? errorNotice(state.calcError) : '<p class="muted">Import account data to see a forecast.</p>'}</section>` +
@@ -702,6 +716,24 @@
         }
         render();
         document.getElementById("preview-title")?.focus();
+      });
+    } else if (form.id === "goal-form") {
+      const out = document.getElementById("goal-result");
+      const currency = form.currency.value;
+      const minor = toMinor(form.amount.value, currency);
+      const name = form.goal_name.value;
+      if (!minor || !name.trim()) { out.innerHTML = '<div class="notice error small" role="alert">Enter a name and a positive amount with the permitted currency precision.</div>'; return; }
+      await act(button, async () => {
+        try {
+          const result = await api("/api/goals/create", {method: "POST", body: {
+            request_id: form.dataset.requestId, workspace_database: form.dataset.workspace, name, currency,
+            target_minor: minor, target_date: form.date.value || null, protected: form.protected_goal.value === "yes"
+          }});
+          try { await refresh(); render(); }
+          catch (_) { out.innerHTML = '<div class="notice ok small">Goal saved locally. Refresh Plan to see it.</div>'; return; }
+          const target = document.getElementById("goal-result");
+          if (target) target.innerHTML = `<div class="notice ok small">${result.created ? "Goal created" : "Goal already saved"} locally. No funds were moved.</div>`;
+        } catch (error) { out.innerHTML = errorNotice(error); }
       });
     } else if (form.id === "floor-form") {
       const minor = toMinor(form.floor.value, currencyOf());

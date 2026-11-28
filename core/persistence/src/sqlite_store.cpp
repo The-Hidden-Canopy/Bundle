@@ -893,6 +893,66 @@ SqliteFinanceStore::BatchPreview SqliteFinanceStore::preview_batch(const Json& b
     return BatchPreview{batch_id, admitted, during - before};
 }
 
+Json SqliteFinanceStore::create_local_goal(const Json& request) {
+    const std::string label = "local savings goal";
+    if (!request.is_object()) fail(label + " must be an object");
+    const std::set<std::string> allowed{"request_id", "name", "currency", "target_minor",
+                                        "target_date", "protected", "created_at"};
+    for (const auto& [key, value] : request.as_object()) {
+        if (!allowed.contains(key)) fail(label + " contains an unsupported field " + key);
+    }
+    const auto key = required_text(request, "request_id", label);
+    if (key.size() != 32 || key.find_first_not_of("0123456789abcdef") != std::string::npos)
+        fail(label + " request_id must be 32 lowercase hexadecimal characters");
+    const auto name = required_text(request, "name", label);
+    if (name.size() > 240 || name.find_first_not_of(" \t\r\n") == std::string::npos ||
+        std::any_of(name.begin(), name.end(), [](unsigned char c) { return c < 32 || c == 127; }))
+        fail(label + " name must be nonblank and contain no control characters");
+    const auto code = required_text(request, "currency", label);
+    const std::set<std::string> currencies{"USD", "EUR", "GBP", "JPY", "KWD"};
+    if (!currencies.contains(code)) fail(label + " currency is unsupported");
+    const auto target = request.get("target_minor");
+    if (!target.is_int() || target.as_int() <= 0 || target.as_int() > 9007199254740991LL)
+        fail(label + " target must be positive exact displayable minor units");
+    const auto protected_flag = request.get("protected");
+    if (!protected_flag.is_bool()) fail(label + " protected must be a boolean");
+    const auto date = timestamp(request.get("target_date"), label + ".target_date", true);
+    const auto created = *timestamp(request.get("created_at"), label + ".created_at");
+    const auto id = "local-goal:" + key;
+    const auto override_id = "local-goal-created:" + key;
+    const auto goal = Json::object({
+        {"goal_id", Json::string(id)}, {"name", Json::string(name)}, {"currency", Json::string(code)},
+        {"target_minor", target}, {"target_date", date ? Json::string(*date) : Json{}},
+        {"current_reserved_minor", Json::integer(0)}, {"planned_contribution_minor", Json::integer(0)},
+        {"priority", Json::integer(0)}, {"protected", Json::integer(protected_flag.as_bool() ? 1 : 0)},
+        {"status", Json::string("active")}, {"plans", Json::array()}
+    });
+    auto c = connection_of(db_, &hook_);
+    try {
+        WriteTransaction transaction(c);
+        Adapter adapter(c);
+        const auto existing = c.one("SELECT created_at FROM user_overrides WHERE override_id = ?",
+                                    {Json::string(override_id)});
+        const auto existing_goal = c.one("SELECT 1 FROM goals WHERE goal_id = ?", {Json::string(id)});
+        if (existing.has_value() != existing_goal.has_value())
+            fail(label + " identity collides with an unrelated record");
+        // Archive restore uses these same canonical insert-or-verify paths.
+        // The separate override records the actual user creation timestamp.
+        adapter.restore_goal(goal);
+        adapter.restore_override(Json::object({
+            {"override_id", Json::string(override_id)}, {"object_type", Json::string("goal")},
+            {"object_id", Json::string(id)}, {"field", Json::string("definition")},
+            {"old_projection", Json{}}, {"new_user_value", goal},
+            {"created_at", existing ? existing->at(0) : Json::string(created)}
+        }));
+        transaction.commit();
+        return Json::object({{"goal_id", Json::string(id)}, {"created", Json::boolean(!existing)},
+                             {"goal", goal}});
+    } catch (const SqliteError& error) {
+        fail(std::string("SQLite local goal creation failed: ") + error.what());
+    }
+}
+
 std::string SqliteFinanceStore::append_batch(const Json& batch) {
     validate_connector_batch(batch);
     if (!batch.get("external_commitments").as_array().empty()) {

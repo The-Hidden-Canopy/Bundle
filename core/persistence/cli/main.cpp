@@ -43,6 +43,8 @@ Commands:
                  Admit a bundle-connector-1 batch document (e.g. from bundle-csv-import).
   csv-to-batch   --source-id ID --imported-at TIME [--source-version N] CSV
                  Print the bundle-connector-1 batch a CSV would produce. Read-only.
+  create-goal    --db FILE GOAL.json
+                 Create a local savings goal and its user provenance (no money movement).
   accounts       --db FILE
                  List accounts with their projected balances.
   history        --db FILE [--object ID] [--type EVENT_TYPE] [--limit N] [--json]
@@ -213,6 +215,7 @@ int run(const Args& args) {
         {"init", {{"--db"}, 0}},
         {"import-csv", {{"--db", "--source-id", "--imported-at", "--source-version"}, 1}},
         {"import-batch", {{"--db"}, 1}},
+        {"create-goal", {{"--db"}, 1}},
         {"accounts", {{"--db"}, 0}},
         {"history", {{"--db", "--object", "--type", "--limit"}, 0}},
         {"calculate", {{"--db", "--as-of", "--horizon-end", "--mode", "--floor-minor", "--what-if-minor", "--what-if-date",
@@ -269,9 +272,20 @@ int run(const Args& args) {
         }
     }
 
+    std::optional<Json> goal_request;
+    if (cmd == "create-goal") {
+        if (!args.flags.empty()) throw UsageError("create-goal does not accept flags");
+        try {
+            goal_request = parse_json(read_file(args.positional[0]));
+        } catch (const JsonError& error) {
+            throw StoreError(std::string("goal file is not valid JSON: ") + error.what());
+        }
+    }
     SqliteFinanceStore store(require(args, "--db"));
     if (cmd == "init") {
         std::cout << "database ready: " << require(args, "--db") << " (schema migration 1)\n";
+    } else if (goal_request) {
+        std::cout << dump_json(store.create_local_goal(*goal_request)) << '\n';
     } else if (batch && args.flag("--dry-run")) {
         const auto preview = store.preview_batch(*batch);
         std::cout << dump_json(Json::object({{"batch_id", Json::string(preview.batch_id)},

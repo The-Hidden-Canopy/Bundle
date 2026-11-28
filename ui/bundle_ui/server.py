@@ -53,6 +53,9 @@ class Api:
             what_if=body.get("what_if") if body else None,
         )
 
+    def create_goal(self, _query: dict[str, str], body: dict[str, Any]) -> dict[str, Any]:
+        return self.backend.create_goal(body)
+
     def history(self, query: dict[str, str], _body: dict[str, Any]) -> list[dict[str, Any]]:
         return self.backend.history(_int(query.get("limit", 100), "limit"))
 
@@ -85,6 +88,7 @@ ROUTES: dict[tuple[str, str], Callable[[Api, dict[str, str], dict[str, Any]], An
     ("GET", "/api/calculate"): Api.calculate,
     ("POST", "/api/calculate"): Api.calculate,
     ("GET", "/api/history"): Api.history,
+    ("POST", "/api/goals/create"): Api.create_goal,
     ("POST", "/api/import/preview"): Api.import_preview,
     ("POST", "/api/import/commit"): Api.import_commit,
     ("POST", "/api/backup/export"): Api.backup_export,
